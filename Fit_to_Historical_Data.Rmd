@@ -1,0 +1,553 @@
+---
+title: "FREC 5984 Project: Fit to Historical Data"
+author: "VT NEE Team: Josh Rady, Marcus Taylor, and Tyler Weiglein"
+date: "01 Apr 2021"
+output: html_document
+---
+
+```{r Setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(coda)
+library(lubridate)
+library(nimble)
+library(tidybayes)
+library(tidyverse)
+```
+
+```{r Read in and visualize data, warning = FALSE}
+# Read in data
+
+target_data <- read.csv("terrestrial_30min-targets.csv")
+
+# Convert time column from character to POSIXct
+
+# Time zone in target data is UTC according to https://docs.google.com/document/d/1l7sxBk-z-GHTlk50rdxP0lPTwJzFJ2gykclINkMsWcc/edit
+
+target_data$time <- ymd_hms(target_data$time, tz = "UTC")
+
+# Convert siteID column from character to factor
+
+target_data$siteID <- as.factor(target_data$siteID)
+
+# Plot all data
+
+ggplot(data = target_data) +
+  geom_point(aes(x = time, y = nee, color = siteID)) +
+  facet_grid(siteID ~ .) + 
+  labs(title = "Time Period: 01 Feb 2017 - 31 Jan 2021",
+       x = "Time (UTC)",
+       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+# Plot data for single week (2020-06-07 through 2020-06-13)
+
+ggplot(data = filter(target_data,
+                     time >= "2020-06-07",
+                     time < "2020-06-14")) +
+  geom_point(aes(x = time, y = nee, color = siteID)) +
+  facet_grid(siteID ~ .) + 
+  labs(title = "Time Period: 07 Jun 2020 - 13 Jun 2020",
+       x = "Time (UTC)",
+       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+```{r Null model (random walk) NIMBLE code}
+RandomWalk <- nimbleCode({
+  
+  # Note:
+  # x = real NEE (state variable)
+  # y = observed NEE
+  
+  # Priors
+  
+  x[1] ~ dnorm(x_ic, sd = sd_ic)
+  sd_add ~ dunif(0, 100)
+  
+  # Process model
+  
+  for(t in 2:n){
+    pred[t] <- x[t-1]
+    x[t] ~ dnorm(pred[t], sd = sd_add)
+  }
+  
+  # Data model
+  
+  for(t in 1:n){
+    y[t] ~ dnorm(x[t], sd = sd_obs)
+  }
+  
+})
+```
+
+```{r Specify data: Preliminaries}
+# Note: B/c of size of data set (and potentially number of NAs), need to use subset of data
+
+subset_length_days <- 7  # Length of subset [d]
+
+subset_length_timesteps <- subset_length_days * 24 * 2  # Number of time steps in subset (days x hours/day x half hours/hour)
+```
+
+```{r Specify data: BART}
+# Separate data by site
+
+target_data_BART <- filter(target_data, siteID == "BART")
+
+# Find data subset w/ fewest number of NAs
+
+min_n_NAs <- subset_length_timesteps  # Initialize scalar for fewest NAs
+
+BART_start_i <- NA  # Initialize BART starting index
+
+# Loop through data to find data subset with minimum number of NAs for specified subset length
+
+for(i in 1:(length(target_data_BART$nee) - subset_length_timesteps + 1)){
+  
+  num_NAs <- sum(is.na(target_data_BART$nee[i:(i + subset_length_timesteps - 1)]))  # Count number of NEE NAs in data subset
+  
+  if(num_NAs <= min_n_NAs){  # Note: Using <= so that most recent data is used
+    
+    BART_start_i <- i  # Save new starting index
+    min_n_NAs <- num_NAs  # Save new lowest number of NAs
+    
+  }
+  
+}
+
+# Calculate data subset end index
+
+BART_end_i <- BART_start_i + subset_length_timesteps - 1
+
+# Subset data
+
+target_data_BART_sub <- target_data_BART[BART_start_i:BART_end_i,]
+
+# Specify data (Note: RW = random walk)
+
+data_RW_BART <- list(y = target_data_BART_sub$nee)
+```
+
+```{r Specify data: KONZ}
+# Separate data by site
+
+target_data_KONZ <- filter(target_data, siteID == "KONZ")
+
+# Find data subset w/ fewest number of NAs
+
+min_n_NAs <- subset_length_timesteps  # Initialize scalar for fewest NAs
+
+KONZ_start_i <- NA  # Initialize KONZ starting index
+
+# Loop through data to find data subset with minimum number of NAs for specified subset length
+
+for(i in 1:(length(target_data_KONZ$nee) - subset_length_timesteps + 1)){
+  
+  num_NAs <- sum(is.na(target_data_KONZ$nee[i:(i + subset_length_timesteps - 1)]))  # Count number of NEE NAs in data subset
+  
+  if(num_NAs <= min_n_NAs){  # Note: Using <= so that most recent data is used
+    
+    KONZ_start_i <- i  # Save new starting index
+    min_n_NAs <- num_NAs  # Save new lowest number of NAs
+    
+  }
+  
+}
+
+# Calculate data subset end index
+
+KONZ_end_i <- KONZ_start_i + subset_length_timesteps - 1
+
+# Subset data
+
+target_data_KONZ_sub <- target_data_KONZ[KONZ_start_i:KONZ_end_i,]
+
+# Specify data (Note: RW = random walk)
+
+data_RW_KONZ <- list(y = target_data_KONZ_sub$nee)
+```
+
+```{r Specify data: OSBS}
+# Separate data by site
+
+target_data_OSBS <- filter(target_data, siteID == "OSBS")
+
+# Find data subset w/ fewest number of NAs
+
+min_n_NAs <- subset_length_timesteps  # Initialize scalar for fewest NAs
+
+OSBS_start_i <- NA  # Initialize OSBS starting index
+
+# Loop through data to find data subset with minimum number of NAs for specified subset length
+
+for(i in 1:(length(target_data_OSBS$nee) - subset_length_timesteps + 1)){
+  
+  num_NAs <- sum(is.na(target_data_OSBS$nee[i:(i + subset_length_timesteps - 1)]))  # Count number of NEE NAs in data subset
+  
+  if(num_NAs <= min_n_NAs){  # Note: Using <= so that most recent data is used
+    
+    OSBS_start_i <- i  # Save new starting index
+    min_n_NAs <- num_NAs  # Save new lowest number of NAs
+    
+  }
+  
+}
+
+# Calculate data subset end index
+
+OSBS_end_i <- OSBS_start_i + subset_length_timesteps - 1
+
+# Subset data
+
+target_data_OSBS_sub <- target_data_OSBS[OSBS_start_i:OSBS_end_i,]
+
+# Specify data (Note: RW = random walk)
+
+data_RW_OSBS <- list(y = target_data_OSBS_sub$nee)
+```
+
+```{r Specify data: SRER}
+# Separate data by site
+
+target_data_SRER <- filter(target_data, siteID == "SRER")
+
+# Find data subset w/ fewest number of NAs
+
+min_n_NAs <- subset_length_timesteps  # Initialize scalar for fewest NAs
+
+SRER_start_i <- NA  # Initialize SRER starting index
+
+# Loop through data to find data subset with minimum number of NAs for specified subset length
+
+for(i in 1:(length(target_data_SRER$nee) - subset_length_timesteps + 1)){
+  
+  num_NAs <- sum(is.na(target_data_SRER$nee[i:(i + subset_length_timesteps - 1)]))  # Count number of NEE NAs in data subset
+  
+  if(num_NAs <= min_n_NAs){  # Note: Using <= so that most recent data is used
+    
+    SRER_start_i <- i  # Save new starting index
+    min_n_NAs <- num_NAs  # Save new lowest number of NAs
+    
+  }
+  
+}
+
+# Calculate data subset end index
+
+SRER_end_i <- SRER_start_i + subset_length_timesteps - 1
+
+# Subset data
+
+target_data_SRER_sub <- target_data_SRER[SRER_start_i:SRER_end_i,]
+
+# Specify data (Note: RW = random walk)
+
+data_RW_SRER <- list(y = target_data_SRER_sub$nee)
+```
+
+```{r Specify constants}
+# Specify constants
+
+constants_BART <- list(n = length(target_data_BART_sub$nee),
+                       x_ic = 0,  # Tried: [1] 0, [2] 1
+                       sd_ic = 1,
+                       sd_obs = 1)  # Tried: [1] 1, [2] 4, [3] 10, [4] 0.5
+
+constants_KONZ <- list(n = length(target_data_KONZ_sub$nee),
+                       x_ic = 0,
+                       sd_ic = 1,
+                       sd_obs = 1)
+
+constants_OSBS <- list(n = length(target_data_OSBS_sub$nee),
+                       x_ic = 0,
+                       sd_ic = 1,
+                       sd_obs = 1)
+
+constants_SRER <- list(n = length(target_data_SRER_sub$nee),
+                       x_ic = 0,
+                       sd_ic = 1,
+                       sd_obs = 1)
+```
+
+```{r Specify initial conditions}
+# Specify number of chains
+
+nchains = 3
+
+# Initialize initial condition lists
+
+inits_BART <- list()
+inits_KONZ <- list()
+inits_OSBS <- list()
+inits_SRER <- list()
+
+# Generate initial conditions
+
+for(i in 1:nchains){
+  
+  # BART
+  
+  y.samp <- sample(target_data_BART_sub$nee, length(target_data_BART_sub$nee), replace = TRUE)
+  inits_BART[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
+                          x = target_data_BART_sub$nee)
+  
+  # KONZ
+  
+  y.samp <- sample(target_data_KONZ_sub$nee, length(target_data_KONZ_sub$nee), replace = TRUE)
+  inits_KONZ[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
+                          x = target_data_KONZ_sub$nee)
+  
+  # OSBS
+  
+  y.samp <- sample(target_data_OSBS_sub$nee, length(target_data_OSBS_sub$nee), replace = TRUE)
+  inits_OSBS[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
+                          x = target_data_OSBS_sub$nee)
+  
+  # SRER
+  
+  y.samp <- sample(target_data_SRER_sub$nee, length(target_data_SRER_sub$nee), replace = TRUE)
+  inits_SRER[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
+                          x = target_data_SRER_sub$nee)
+  
+}
+```
+
+```{r Run NIMBLE for null (random walk) model, message = FALSE}
+# BART
+
+nimble_out_RW_BART <- nimbleMCMC(code = RandomWalk,
+                                 data = data_RW_BART,
+                                 inits = inits_BART,
+                                 constants = constants_BART,
+                                 monitors = c("sd_add",
+                                              "x",
+                                              "y"),
+                                 niter = 11000,
+                                 nchains = nchains,
+                                 samplesAsCodaMCMC = TRUE)
+
+# KONZ
+
+nimble_out_RW_KONZ <- nimbleMCMC(code = RandomWalk,
+                                 data = data_RW_KONZ,
+                                 inits = inits_KONZ,
+                                 constants = constants_KONZ,
+                                 monitors = c("sd_add",
+                                              "x",
+                                              "y"),
+                                 niter = 11000,
+                                 nchains = nchains,
+                                 samplesAsCodaMCMC = TRUE)
+
+# OSBS
+
+nimble_out_RW_OSBS <- nimbleMCMC(code = RandomWalk,
+                                 data = data_RW_OSBS,
+                                 inits = inits_OSBS,
+                                 constants = constants_OSBS,
+                                 monitors = c("sd_add",
+                                              "x",
+                                              "y"),
+                                 niter = 11000,
+                                 nchains = nchains,
+                                 samplesAsCodaMCMC = TRUE)
+
+# SRER
+
+nimble_out_RW_SRER <- nimbleMCMC(code = RandomWalk,
+                                 data = data_RW_SRER,
+                                 inits = inits_SRER,
+                                 constants = constants_SRER,
+                                 monitors = c("sd_add",
+                                              "x",
+                                              "y"),
+                                 niter = 11000,
+                                 nchains = nchains,
+                                 samplesAsCodaMCMC = TRUE)
+```
+
+```{r Visualize chains and remove burn-in}
+# BART
+
+plot(nimble_out_RW_BART[, "sd_add"], main = "BART")  # Visualize all chains
+burnin_RW_BART <- 2000  # Burn-in
+nimble_burn_RW_BART <- window(nimble_out_RW_BART, start = burnin_RW_BART)  # Exclude burn-in
+plot(nimble_burn_RW_BART[, "sd_add"], main = "BART")  # Visualize chains w/o burn-in
+
+# KONZ
+
+plot(nimble_out_RW_KONZ[, "sd_add"], main = "KONZ")  # Visualize all chains
+burnin_RW_KONZ <- 2000  # Burn-in
+nimble_burn_RW_KONZ <- window(nimble_out_RW_KONZ, start = burnin_RW_KONZ)  # Exclude burn-in
+plot(nimble_burn_RW_KONZ[, "sd_add"], main = "KONZ")  # Visualize chains w/o burn-in
+
+# OSBS
+
+plot(nimble_out_RW_OSBS[, "sd_add"], main = "OSBS")  # Visualize all chains
+burnin_RW_OSBS <- 2000  # Burn-in
+nimble_burn_RW_OSBS <- window(nimble_out_RW_OSBS, start = burnin_RW_OSBS)  # Exclude burn-in
+plot(nimble_burn_RW_OSBS[, "sd_add"], main = "OSBS")  # Visualize chains w/o burn-in
+
+# SRER
+
+plot(nimble_out_RW_SRER[, "sd_add"], main = "SRER")  # Visualize all chains
+burnin_RW_SRER <- 2000  # Burn-in
+nimble_burn_RW_SRER <- window(nimble_out_RW_SRER, start = burnin_RW_SRER)  # Exclude burn-in
+plot(nimble_burn_RW_SRER[, "sd_add"], main = "SRER")  # Visualize chains w/o burn-in
+
+```
+
+```{r Confirm convergence}
+# BART
+
+# gelman.diag(nimble_out_RW_BART)
+# gelman.plot(nimble_out_RW_BART)
+
+# gelman.diag(nimble_burn_RW_BART)
+# acfplot(nimble_burn_RW_BART)
+# effectiveSize(nimble_burn_RW_BART)
+# cumuplot(nimble_burn_RW_BART, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))
+
+# KONZ
+
+# gelman.diag(nimble_out_RW_KONZ)
+# gelman.plot(nimble_out_RW_KONZ)
+
+# gelman.diag(nimble_burn_RW_KONZ)
+# acfplot(nimble_burn_RW_KONZ)
+# effectiveSize(nimble_burn_RW_KONZ)
+# cumuplot(nimble_burn_RW_KONZ, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))
+
+# OSBS
+
+# gelman.diag(nimble_out_RW_OSBS)
+# gelman.plot(nimble_out_RW_OSBS)
+
+# gelman.diag(nimble_burn_RW_OSBS)
+# acfplot(nimble_burn_RW_OSBS)
+# effectiveSize(nimble_burn_RW_OSBS)
+# cumuplot(nimble_burn_RW_OSBS, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))
+
+# SRER
+
+# gelman.diag(nimble_out_RW_SRER)
+# gelman.plot(nimble_out_RW_SRER)
+
+# gelman.diag(nimble_burn_RW_SRER)
+# acfplot(nimble_burn_RW_SRER)
+# effectiveSize(nimble_burn_RW_SRER)
+# cumuplot(nimble_burn_RW_SRER, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))
+```
+
+```{r Convert output using tidybayes}
+# BART
+
+chain_RW_BART <- nimble_burn_RW_BART %>%
+  spread_draws(y[day], x[day], sd_add)
+
+# KONZ
+
+chain_RW_KONZ <- nimble_burn_RW_KONZ %>%
+  spread_draws(y[day], x[day], sd_add)
+
+# OSBS
+
+chain_RW_OSBS <- nimble_burn_RW_OSBS %>%
+  spread_draws(y[day], x[day], sd_add)
+
+# SRER
+
+chain_RW_SRER <- nimble_burn_RW_SRER %>%
+  spread_draws(y[day], x[day], sd_add)
+```
+
+```{r Plot model versus observations, warning = FALSE}
+colors <- c("#F8766D", "#7CAE00", "#00BFC4", "#C77CFF")
+
+# BART
+
+chain_RW_BART %>%
+  group_by(day) %>%
+  summarise(mean = mean(x),
+            lower = quantile(x, 0.025),
+            upper = quantile(x, 0.975),
+            .groups = "drop") %>%
+  mutate(time = target_data_BART_sub$time) %>%
+  ggplot(aes(x = time, y = mean)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lower, ymax = upper),
+              alpha = 0.2,
+              color = colors[1],
+              fill = colors[1]) +
+  geom_point(data = target_data_BART_sub, aes(x = time, y = nee), color = "black") +
+  labs(title = paste("Site: BART | Time Period: ", substr(target_data_BART_sub$time[1], 1, 10), " - ", substr(target_data_BART_sub$time[subset_length_timesteps], 1, 10)),
+       x = "Time (UTC)",
+       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+  theme_bw()
+
+# KONZ
+
+chain_RW_KONZ %>%
+  group_by(day) %>%
+  summarise(mean = mean(x),
+            lower = quantile(x, 0.025),
+            upper = quantile(x, 0.975),
+            .groups = "drop") %>%
+  mutate(time = target_data_KONZ_sub$time) %>%
+  ggplot(aes(x = time, y = mean)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lower, ymax = upper),
+              alpha = 0.2,
+              color = colors[2],
+              fill = colors[2]) +
+  geom_point(data = target_data_KONZ_sub, aes(x = time, y = nee), color = "black") +
+  labs(title = paste("Site: KONZ | Time Period: ", substr(target_data_KONZ_sub$time[1], 1, 10), " - ", substr(target_data_KONZ_sub$time[subset_length_timesteps], 1, 10)),
+       x = "Time (UTC)",
+       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+  theme_bw()
+
+# OSBS
+
+chain_RW_OSBS %>%
+  group_by(day) %>%
+  summarise(mean = mean(x),
+            lower = quantile(x, 0.025),
+            upper = quantile(x, 0.975),
+            .groups = "drop") %>%
+  mutate(time = target_data_OSBS_sub$time) %>%
+  ggplot(aes(x = time, y = mean)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lower, ymax = upper),
+              alpha = 0.2,
+              color = colors[3],
+              fill = colors[3]) +
+  geom_point(data = target_data_OSBS_sub, aes(x = time, y = nee), color = "black") +
+  labs(title = paste("Site: OSBS | Time Period: ", substr(target_data_OSBS_sub$time[1], 1, 10), " - ", substr(target_data_OSBS_sub$time[subset_length_timesteps], 1, 10)),
+       x = "Time (UTC)",
+       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+  theme_bw()
+
+# SRER
+
+chain_RW_SRER %>%
+  group_by(day) %>%
+  summarise(mean = mean(x),
+            lower = quantile(x, 0.025),
+            upper = quantile(x, 0.975),
+            .groups = "drop") %>%
+  mutate(time = target_data_SRER_sub$time) %>%
+  ggplot(aes(x = time, y = mean)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lower, ymax = upper),
+              alpha = 0.2,
+              color = colors[4],
+              fill = colors[4]) +
+  geom_point(data = target_data_SRER_sub, aes(x = time, y = nee), color = "black") +
+  labs(title = paste("Site: SRER | Time Period: ", substr(target_data_SRER_sub$time[1], 1, 10), " - ", substr(target_data_SRER_sub$time[subset_length_timesteps], 1, 10)),
+       x = "Time (UTC)",
+       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+  theme_bw()
+```
+
