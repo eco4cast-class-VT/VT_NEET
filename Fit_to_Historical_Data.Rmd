@@ -43,20 +43,20 @@ temp_data$siteID <- as.factor(temp_data$siteID)
 ggplot(data = target_data) +
   geom_point(aes(x = time, y = nee, color = siteID)) +
   facet_grid(siteID ~ .) + 
-  labs(title = "Time Period: 01 Feb 2017 - 31 Jan 2021",
+  labs(title = "Full Time Period: 01 Feb 2017 - 31 Jan 2021",
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw() +
   theme(legend.position = "none")
 
-# Plot data for single week (2020-06-07 through 2020-06-13)
+# Plot data for example week (2020-06-07 through 2020-06-13)
 
 ggplot(data = filter(target_data,
                      time >= "2020-06-07",
                      time < "2020-06-14")) +
   geom_point(aes(x = time, y = nee, color = siteID)) +
   facet_grid(siteID ~ .) + 
-  labs(title = "Time Period: 07 Jun 2020 - 13 Jun 2020",
+  labs(title = "Example Time Period: 07 Jun 2020 - 13 Jun 2020",
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw() +
@@ -87,13 +87,13 @@ RandomWalk <- nimbleCode({
   # Data model
   
   for(t in 1:n){
-    y[t] ~ dnorm(x[t], sd = sd_obs)
+    y[t] ~ dnorm(x[t], sd = sd_obs[t])
   }
   
 })
 ```
 
-Construct temperature model for NIMBLE.
+Construct temperature dynamic linear model (DLM) for NIMBLE.
 
 ```{r Temperature dynamic linear model (DLM) NIMBLE code}
 TempDLM <- nimbleCode({
@@ -118,11 +118,13 @@ TempDLM <- nimbleCode({
   # Data model
   
   for(t in 1:n){
-    y[t] ~ dnorm(x[t], sd = sd_obs)
+    y[t] ~ dnorm(x[t], sd = sd_obs[t])
   }
   
 })
 ```
+
+Because of the size of the data set, a subset of the data had to be used for model fitting. The variables controlling the size of the data subset are specified below.
 
 ```{r Specify data: Preliminaries}
 # Note: B/c of size of data set (and potentially number of NAs), need to use subset of data
@@ -131,6 +133,8 @@ subset_length_days <- 7  # Length of subset [d]
 
 subset_length_timesteps <- subset_length_days * 24 * 2  # Number of time steps in subset (days x hours/day x half hours/hour)
 ```
+
+Specify data from BART to be used for model fitting. (Because of the large difference between NEE values in the winter versus other times of year, the additional restriction of limiting the data subset to April-November was used.)
 
 ```{r Specify data: BART}
 # Separate data by site
@@ -144,13 +148,13 @@ min_n_NAs <- subset_length_timesteps  # Initialize scalar for fewest NAs
 
 BART_start_i <- NA  # Initialize BART starting index
 
-# Loop through data to find data subset with minimum number of NAs for specified subset length
+# Loop through data to find data subset (not during winter) with minimum number of NAs for specified subset length
 
 for(i in 1:(length(target_data_BART$nee) - subset_length_timesteps + 1)){
   
   num_NAs <- sum(is.na(target_data_BART$nee[i:(i + subset_length_timesteps - 1)]))  # Count number of NEE NAs in data subset
   
-  if(num_NAs <= min_n_NAs){  # Note: Using <= so that most recent data is used
+  if(num_NAs <= min_n_NAs & sum(substr(target_data_BART$time[i], 6, 7) != c("12", "01", "02", "03")) == 4){  # Note: Using <= so that most recent data is used; also, excluding data from December through March
     
     BART_start_i <- i  # Save new starting index
     min_n_NAs <- num_NAs  # Save new lowest number of NAs
@@ -167,6 +171,32 @@ BART_end_i <- BART_start_i + subset_length_timesteps - 1
 
 target_data_BART_sub <- target_data_BART[BART_start_i:BART_end_i,]
 
+# Interpolate NEE values to estimate sd_obs
+
+nee_interp_BART_sub <- approx(x = target_data_BART_sub$time[!is.na(target_data_BART_sub$nee)],
+                              y = target_data_BART_sub$nee[!is.na(target_data_BART_sub$nee)],
+                              xout = target_data_BART_sub$time,
+                              method = "linear",
+                              yleft = mean(target_data_BART_sub$nee, na.rm = TRUE),
+                              yright = mean(target_data_BART_sub$nee, na.rm = TRUE),
+                              na.rm = TRUE)
+
+sd_obs_BART_sub <- rep(NA, length(target_data_BART_sub$nee))  # Initialize sd_obs vector
+
+for(i in 1:length(sd_obs_BART_sub)){
+  
+  if(nee_interp_BART_sub$y[i] >= 0){  # Calculate sd_obs if NEE is positive
+    
+    sd_obs_BART_sub[i] <- target_data_BART_sub$nee_sd_intercept[1] + target_data_BART_sub$ nee_sd_slopeP[1] * nee_interp_BART_sub$y[i]  # Note: Since intercept and slope do not change, can just use first value of intercept and slope values
+    
+  }else{  # Calculate sd_obs if NEE is negative
+    
+    sd_obs_BART_sub[i] <- target_data_BART_sub$nee_sd_intercept[1] + target_data_BART_sub$ nee_sd_slopeN[1] * nee_interp_BART_sub$y[i]
+    
+  }
+  
+}
+
 # Match temperature data to subset NEE data
 
 BART_temp_i <- match(target_data_BART_sub$time, temp_data_BART$startDateTime)
@@ -174,11 +204,15 @@ temp_data_BART_sub <- temp_data_BART[BART_temp_i,]
 
 # Specify data (Note: RW = random walk)
 
-data_RW_BART <- list(y = target_data_BART_sub$nee)
+data_RW_BART <- list(y = target_data_BART_sub$nee,
+                     sd_obs = sd_obs_BART_sub)
 
 data_TempDLM_BART <- list(y = target_data_BART_sub$nee,
-                          temp = temp_data_BART_sub$temp)
+                          temp = temp_data_BART_sub$temp,
+                          sd_obs = sd_obs_BART_sub)
 ```
+
+Specify data from KONZ to be used for model fitting.
 
 ```{r Specify data: KONZ}
 # Separate data by site
@@ -215,6 +249,32 @@ KONZ_end_i <- KONZ_start_i + subset_length_timesteps - 1
 
 target_data_KONZ_sub <- target_data_KONZ[KONZ_start_i:KONZ_end_i,]
 
+# Interpolate NEE values to estimate sd_obs
+
+nee_interp_KONZ_sub <- approx(x = target_data_KONZ_sub$time[!is.na(target_data_KONZ_sub$nee)],
+                              y = target_data_KONZ_sub$nee[!is.na(target_data_KONZ_sub$nee)],
+                              xout = target_data_KONZ_sub$time,
+                              method = "linear",
+                              yleft = mean(target_data_KONZ_sub$nee, na.rm = TRUE),
+                              yright = mean(target_data_KONZ_sub$nee, na.rm = TRUE),
+                              na.rm = TRUE)
+
+sd_obs_KONZ_sub <- rep(NA, length(target_data_KONZ_sub$nee))  # Initialize sd_obs vector
+
+for(i in 1:length(sd_obs_KONZ_sub)){
+  
+  if(nee_interp_KONZ_sub$y[i] >= 0){  # Calculate sd_obs if NEE is positive
+    
+    sd_obs_KONZ_sub[i] <- target_data_KONZ_sub$nee_sd_intercept[1] + target_data_KONZ_sub$ nee_sd_slopeP[1] * nee_interp_KONZ_sub$y[i]  # Note: Since intercept and slope do not change, can just use first value of intercept and slope values
+    
+  }else{  # Calculate sd_obs if NEE is negative
+    
+    sd_obs_KONZ_sub[i] <- target_data_KONZ_sub$nee_sd_intercept[1] + target_data_KONZ_sub$ nee_sd_slopeN[1] * nee_interp_KONZ_sub$y[i]
+    
+  }
+  
+}
+
 # Match temperature data to subset NEE data
 
 KONZ_temp_i <- match(target_data_KONZ_sub$time, temp_data_KONZ$startDateTime)
@@ -222,17 +282,25 @@ temp_data_KONZ_sub <- temp_data_KONZ[KONZ_temp_i,]
 
 # Specify data (Note: RW = random walk)
 
-data_RW_KONZ <- list(y = target_data_KONZ_sub$nee)
+data_RW_KONZ <- list(y = target_data_KONZ_sub$nee,
+                     sd_obs = sd_obs_KONZ_sub)
 
 data_TempDLM_KONZ <- list(y = target_data_KONZ_sub$nee,
-                          temp = temp_data_KONZ_sub$temp)
+                          temp = temp_data_KONZ_sub$temp,
+                          sd_obs = sd_obs_KONZ_sub)
 ```
+
+Specify data from OSBS to be used for model fitting.
 
 ```{r Specify data: OSBS}
 # Separate data by site
 
 target_data_OSBS <- filter(target_data, siteID == "OSBS")
 temp_data_OSBS <- filter(temp_data, siteID == "OSBS")
+
+# Remove duplicate rows
+
+target_data_OSBS <- unique(target_data_OSBS)
 
 # Find data subset w/ fewest number of NAs
 
@@ -263,6 +331,32 @@ OSBS_end_i <- OSBS_start_i + subset_length_timesteps - 1
 
 target_data_OSBS_sub <- target_data_OSBS[OSBS_start_i:OSBS_end_i,]
 
+# Interpolate NEE values to estimate sd_obs
+
+nee_interp_OSBS_sub <- approx(x = target_data_OSBS_sub$time[!is.na(target_data_OSBS_sub$nee)],
+                              y = target_data_OSBS_sub$nee[!is.na(target_data_OSBS_sub$nee)],
+                              xout = target_data_OSBS_sub$time,
+                              method = "linear",
+                              yleft = mean(target_data_OSBS_sub$nee, na.rm = TRUE),
+                              yright = mean(target_data_OSBS_sub$nee, na.rm = TRUE),
+                              na.rm = TRUE)
+
+sd_obs_OSBS_sub <- rep(NA, length(target_data_OSBS_sub$nee))  # Initialize sd_obs vector
+
+for(i in 1:length(sd_obs_OSBS_sub)){
+  
+  if(nee_interp_OSBS_sub$y[i] >= 0){  # Calculate sd_obs if NEE is positive
+    
+    sd_obs_OSBS_sub[i] <- target_data_OSBS_sub$nee_sd_intercept[1] + target_data_OSBS_sub$ nee_sd_slopeP[1] * nee_interp_OSBS_sub$y[i]  # Note: Since intercept and slope do not change, can just use first value of intercept and slope values
+    
+  }else{  # Calculate sd_obs if NEE is negative
+    
+    sd_obs_OSBS_sub[i] <- target_data_OSBS_sub$nee_sd_intercept[1] + target_data_OSBS_sub$ nee_sd_slopeN[1] * nee_interp_OSBS_sub$y[i]
+    
+  }
+  
+}
+
 # Match temperature data to subset NEE data
 
 OSBS_temp_i <- match(target_data_OSBS_sub$time, temp_data_OSBS$startDateTime)
@@ -270,17 +364,25 @@ temp_data_OSBS_sub <- temp_data_OSBS[OSBS_temp_i,]
 
 # Specify data (Note: RW = random walk)
 
-data_RW_OSBS <- list(y = target_data_OSBS_sub$nee)
+data_RW_OSBS <- list(y = target_data_OSBS_sub$nee,
+                     sd_obs = sd_obs_OSBS_sub)
 
 data_TempDLM_OSBS <- list(y = target_data_OSBS_sub$nee,
-                          temp = temp_data_OSBS_sub$temp)
+                          temp = temp_data_OSBS_sub$temp,
+                          sd_obs = sd_obs_OSBS_sub)
 ```
+
+Specify data from SRER to be used for model fitting.
 
 ```{r Specify data: SRER}
 # Separate data by site
 
 target_data_SRER <- filter(target_data, siteID == "SRER")
 temp_data_SRER <- filter(temp_data, siteID == "SRER")
+
+# Remove duplicate rows
+
+target_data_SRER <- unique(target_data_SRER)
 
 # Find data subset w/ fewest number of NAs
 
@@ -311,6 +413,34 @@ SRER_end_i <- SRER_start_i + subset_length_timesteps - 1
 
 target_data_SRER_sub <- target_data_SRER[SRER_start_i:SRER_end_i,]
 
+# Interpolate NEE values to estimate sd_obs
+
+nee_interp_SRER_sub <- approx(x = target_data_SRER_sub$time[!is.na(target_data_SRER_sub$nee)],
+                              y = target_data_SRER_sub$nee[!is.na(target_data_SRER_sub$nee)],
+                              xout = target_data_SRER_sub$time,
+                              method = "linear",
+                              yleft = mean(target_data_SRER_sub$nee, na.rm = TRUE),
+                              yright = mean(target_data_SRER_sub$nee, na.rm = TRUE),
+                              na.rm = TRUE)
+
+sd_obs_SRER_sub <- rep(NA, length(target_data_SRER_sub$nee))  # Initialize sd_obs vector
+
+for(i in 1:length(sd_obs_SRER_sub)){
+  
+  if(nee_interp_SRER_sub$y[i] >= 0){  # Calculate sd_obs if NEE is positive
+    
+    sd_obs_SRER_sub[i] <- target_data_SRER_sub$nee_sd_intercept[1] + target_data_SRER_sub$ nee_sd_slopeP[1] * nee_interp_SRER_sub$y[i]  # Note: Since intercept and slope do not change, can just use first value of intercept and slope values
+    
+  }else{  # Calculate sd_obs if NEE is negative
+    
+    sd_obs_SRER_sub[i] <- target_data_SRER_sub$nee_sd_intercept[1] + target_data_SRER_sub$ nee_sd_slopeN[1] * nee_interp_SRER_sub$y[i]
+    
+  }
+  
+}
+
+sd_obs_SRER_sub <- sd_obs_SRER_sub*8
+
 # Match temperature data to subset NEE data
 
 SRER_temp_i <- match(target_data_SRER_sub$time, temp_data_SRER$startDateTime)
@@ -318,35 +448,37 @@ temp_data_SRER_sub <- temp_data_SRER[SRER_temp_i,]
 
 # Specify data (Note: RW = random walk)
 
-data_RW_SRER <- list(y = target_data_SRER_sub$nee)
+data_RW_SRER <- list(y = target_data_SRER_sub$nee,
+                     sd_obs = sd_obs_SRER_sub)
 
 data_TempDLM_SRER <- list(y = target_data_SRER_sub$nee,
-                          temp = temp_data_SRER_sub$temp)
+                          temp = temp_data_SRER_sub$temp,
+                          sd_obs = sd_obs_SRER_sub)
 ```
+
+Specify constants for NIMBLE.
 
 ```{r Specify constants}
 # Specify constants
 
 constants_BART <- list(n = length(target_data_BART_sub$nee),
-                       x_ic = 0,  # Tried: [1] 0, [2] 1
-                       sd_ic = 1,
-                       sd_obs = 1)  # Tried: [1] 1, [2] 4, [3] 10, [4] 0.5
+                       x_ic = 0,
+                       sd_ic = 1)
 
 constants_KONZ <- list(n = length(target_data_KONZ_sub$nee),
                        x_ic = 0,
-                       sd_ic = 1,
-                       sd_obs = 1)
+                       sd_ic = 1)
 
 constants_OSBS <- list(n = length(target_data_OSBS_sub$nee),
                        x_ic = 0,
-                       sd_ic = 1,
-                       sd_obs = 1)
+                       sd_ic = 1)
 
 constants_SRER <- list(n = length(target_data_SRER_sub$nee),
                        x_ic = 0,
-                       sd_ic = 1,
-                       sd_obs = 1)
+                       sd_ic = 1)
 ```
+
+Specify initial conditions for null (random walk) model.
 
 ```{r Specify initial conditions for null (random walk) model}
 # Specify number of chains
@@ -391,6 +523,8 @@ for(i in 1:nchains){
 }
 ```
 
+Specify initial conditions for temperature DLM.
+
 ```{r Specify initial conditions for temperature DLM}
 # Initialize initial condition lists
 
@@ -433,6 +567,8 @@ for(i in 1:nchains){
   
 }
 ```
+
+Run NIMBLE for null (random walk) model.
 
 ```{r Run NIMBLE for null (random walk) model, message = FALSE, error = FALSE}
 # BART
@@ -488,14 +624,17 @@ nimble_out_RW_SRER <- nimbleMCMC(code = RandomWalk,
                                  samplesAsCodaMCMC = TRUE)
 ```
 
-```{r Run NIMBLE for temperature DLM model, message = FALSE, error = FALSE}
+Run NIMBLE for temperature DLM.
+
+```{r Run NIMBLE for temperature DLM, message = FALSE, error = FALSE}
 # BART
 
 nimble_out_TempDLM_BART <- nimbleMCMC(code = TempDLM,
                                       data = data_TempDLM_BART,
                                       inits = inits_TempDLM_BART,
                                       constants = constants_BART,
-                                      monitors = c("sd_add",
+                                      monitors = c("b1",
+                                                   "sd_add",
                                                    "x",
                                                    "y"),
                                       niter = 11000,
@@ -508,7 +647,8 @@ nimble_out_TempDLM_KONZ <- nimbleMCMC(code = TempDLM,
                                       data = data_TempDLM_KONZ,
                                       inits = inits_TempDLM_KONZ,
                                       constants = constants_KONZ,
-                                      monitors = c("sd_add",
+                                      monitors = c("b1",
+                                                   "sd_add",
                                                    "x",
                                                    "y"),
                                       niter = 11000,
@@ -521,7 +661,8 @@ nimble_out_TempDLM_OSBS <- nimbleMCMC(code = TempDLM,
                                       data = data_TempDLM_OSBS,
                                       inits = inits_TempDLM_OSBS,
                                       constants = constants_OSBS,
-                                      monitors = c("sd_add",
+                                      monitors = c("b1",
+                                                   "sd_add",
                                                    "x",
                                                    "y"),
                                       niter = 11000,
@@ -534,7 +675,8 @@ nimble_out_TempDLM_SRER <- nimbleMCMC(code = TempDLM,
                                       data = data_TempDLM_SRER,
                                       inits = inits_TempDLM_SRER,
                                       constants = constants_SRER,
-                                      monitors = c("sd_add",
+                                      monitors = c("b1",
+                                                   "sd_add",
                                                    "x",
                                                    "y"),
                                       niter = 11000,
@@ -542,150 +684,119 @@ nimble_out_TempDLM_SRER <- nimbleMCMC(code = TempDLM,
                                       samplesAsCodaMCMC = TRUE)
 ```
 
+Visualize chains and remove burn-in for null (random walk) model.
+
 ```{r Visualize chains and remove burn-in for null (random walk) model}
 # BART
 
-plot(nimble_out_RW_BART[, "sd_add"], main = "BART")  # Visualize all chains
+plot(nimble_out_RW_BART[, "sd_add"], main = "BART: sd_add")  # Visualize all chains
 burnin_RW_BART <- 2000  # Burn-in
 nimble_burn_RW_BART <- window(nimble_out_RW_BART, start = burnin_RW_BART)  # Exclude burn-in
-plot(nimble_burn_RW_BART[, "sd_add"], main = "BART")  # Visualize chains w/o burn-in
+plot(nimble_burn_RW_BART[, "sd_add"], main = "BART: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
 
 # KONZ
 
-plot(nimble_out_RW_KONZ[, "sd_add"], main = "KONZ")  # Visualize all chains
+plot(nimble_out_RW_KONZ[, "sd_add"], main = "KONZ: sd_add")  # Visualize all chains
 burnin_RW_KONZ <- 2000  # Burn-in
 nimble_burn_RW_KONZ <- window(nimble_out_RW_KONZ, start = burnin_RW_KONZ)  # Exclude burn-in
-plot(nimble_burn_RW_KONZ[, "sd_add"], main = "KONZ")  # Visualize chains w/o burn-in
+plot(nimble_burn_RW_KONZ[, "sd_add"], main = "KONZ: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
 
 # OSBS
 
-plot(nimble_out_RW_OSBS[, "sd_add"], main = "OSBS")  # Visualize all chains
+plot(nimble_out_RW_OSBS[, "sd_add"], main = "OSBS: sd_add")  # Visualize all chains
 burnin_RW_OSBS <- 2000  # Burn-in
 nimble_burn_RW_OSBS <- window(nimble_out_RW_OSBS, start = burnin_RW_OSBS)  # Exclude burn-in
-plot(nimble_burn_RW_OSBS[, "sd_add"], main = "OSBS")  # Visualize chains w/o burn-in
+plot(nimble_burn_RW_OSBS[, "sd_add"], main = "OSBS: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
 
 # SRER
 
-plot(nimble_out_RW_SRER[, "sd_add"], main = "SRER")  # Visualize all chains
+plot(nimble_out_RW_SRER[, "sd_add"], main = "SRER: sd_add")  # Visualize all chains
 burnin_RW_SRER <- 2000  # Burn-in
 nimble_burn_RW_SRER <- window(nimble_out_RW_SRER, start = burnin_RW_SRER)  # Exclude burn-in
-plot(nimble_burn_RW_SRER[, "sd_add"], main = "SRER")  # Visualize chains w/o burn-in
-
+plot(nimble_burn_RW_SRER[, "sd_add"], main = "SRER: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
 ```
+
+Visualize chains and remove burn-in for temperature DLM.
 
 ```{r Visualize chains and remove burn-in for temperature DLM}
 # BART
 
-plot(nimble_out_TempDLM_BART[, "sd_add"], main = "BART")  # Visualize all chains
+plot(nimble_out_TempDLM_BART[, c("b1")], main = "BART: b1")  # Visualize all chains
+plot(nimble_out_TempDLM_BART[, c("sd_add")], main = "BART: sd_add")  # Visualize all chains
 burnin_TempDLM_BART <- 2000  # Burn-in
 nimble_burn_TempDLM_BART <- window(nimble_out_TempDLM_BART, start = burnin_TempDLM_BART)  # Exclude burn-in
-plot(nimble_burn_TempDLM_BART[, "sd_add"], main = "BART")  # Visualize chains w/o burn-in
+plot(nimble_burn_TempDLM_BART[, c("b1")], main = "BART: b1 (burn-in removed)")  # Visualize chains w/o burn-in
+plot(nimble_burn_TempDLM_BART[, c("sd_add")], main = "BART: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
 
 # KONZ
 
-plot(nimble_out_TempDLM_KONZ[, "sd_add"], main = "KONZ")  # Visualize all chains
+plot(nimble_out_TempDLM_KONZ[, c("b1")], main = "KONZ: b1")  # Visualize all chains
+plot(nimble_out_TempDLM_KONZ[, c("sd_add")], main = "KONZ: sd_add")  # Visualize all chains
 burnin_TempDLM_KONZ <- 2000  # Burn-in
 nimble_burn_TempDLM_KONZ <- window(nimble_out_TempDLM_KONZ, start = burnin_TempDLM_KONZ)  # Exclude burn-in
-plot(nimble_burn_TempDLM_KONZ[, "sd_add"], main = "KONZ")  # Visualize chains w/o burn-in
+plot(nimble_burn_TempDLM_KONZ[, c("b1")], main = "KONZ: b1 (burn-in removed)")  # Visualize chains w/o burn-in
+plot(nimble_burn_TempDLM_KONZ[, c("sd_add")], main = "KONZ: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
 
 # OSBS
 
-plot(nimble_out_TempDLM_OSBS[, "sd_add"], main = "OSBS")  # Visualize all chains
+plot(nimble_out_TempDLM_OSBS[, c("b1")], main = "OSBS: b1")  # Visualize all chains
+plot(nimble_out_TempDLM_OSBS[, c("sd_add")], main = "OSBS: sd_add")  # Visualize all chains
 burnin_TempDLM_OSBS <- 2000  # Burn-in
 nimble_burn_TempDLM_OSBS <- window(nimble_out_TempDLM_OSBS, start = burnin_TempDLM_OSBS)  # Exclude burn-in
-plot(nimble_burn_TempDLM_OSBS[, "sd_add"], main = "OSBS")  # Visualize chains w/o burn-in
+plot(nimble_burn_TempDLM_OSBS[, c("b1")], main = "OSBS: b1 (burn-in removed)")  # Visualize chains w/o burn-in
+plot(nimble_burn_TempDLM_OSBS[, c("sd_add")], main = "OSBS: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
 
 # SRER
 
-plot(nimble_out_TempDLM_SRER[, "sd_add"], main = "SRER")  # Visualize all chains
+plot(nimble_out_TempDLM_SRER[, c("b1")], main = "SRER: b1")  # Visualize all chains
+plot(nimble_out_TempDLM_SRER[, c("sd_add")], main = "SRER: sd_add")  # Visualize all chains
 burnin_TempDLM_SRER <- 2000  # Burn-in
 nimble_burn_TempDLM_SRER <- window(nimble_out_TempDLM_SRER, start = burnin_TempDLM_SRER)  # Exclude burn-in
-plot(nimble_burn_TempDLM_SRER[, "sd_add"], main = "SRER")  # Visualize chains w/o burn-in
+plot(nimble_burn_TempDLM_SRER[, c("b1")], main = "SRER: b1 (burn-in removed)")  # Visualize chains w/o burn-in
+plot(nimble_burn_TempDLM_SRER[, c("sd_add")], main = "SRER: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
 ```
+
+Examine diagnostics for null (random walk) model. Since the upper confidence interval for the Brooks-Gelman-Rubin convergence diagnostic is less than 1.1, we can conclude the chains have converged. 
 
 ```{r Confirm convergence for null (random walk) model}
 # BART
 
-# gelman.diag(nimble_out_RW_BART)
-# gelman.plot(nimble_out_RW_BART)
-
-# gelman.diag(nimble_burn_RW_BART)
-# acfplot(nimble_burn_RW_BART)
-# effectiveSize(nimble_burn_RW_BART)
-# cumuplot(nimble_burn_RW_BART, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))
+gelman.diag(nimble_burn_RW_BART[, "sd_add"])
 
 # KONZ
 
-# gelman.diag(nimble_out_RW_KONZ)
-# gelman.plot(nimble_out_RW_KONZ)
-
-# gelman.diag(nimble_burn_RW_KONZ)
-# acfplot(nimble_burn_RW_KONZ)
-# effectiveSize(nimble_burn_RW_KONZ)
-# cumuplot(nimble_burn_RW_KONZ, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))
+gelman.diag(nimble_burn_RW_KONZ[, "sd_add"])
 
 # OSBS
 
-# gelman.diag(nimble_out_RW_OSBS)
-# gelman.plot(nimble_out_RW_OSBS)
-
-# gelman.diag(nimble_burn_RW_OSBS)
-# acfplot(nimble_burn_RW_OSBS)
-# effectiveSize(nimble_burn_RW_OSBS)
-# cumuplot(nimble_burn_RW_OSBS, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))
+gelman.diag(nimble_burn_RW_OSBS[, "sd_add"])
 
 # SRER
 
-# gelman.diag(nimble_out_RW_SRER)
-# gelman.plot(nimble_out_RW_SRER)
-
-# gelman.diag(nimble_burn_RW_SRER)
-# acfplot(nimble_burn_RW_SRER)
-# effectiveSize(nimble_burn_RW_SRER)
-# cumuplot(nimble_burn_RW_SRER, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))
+gelman.diag(nimble_burn_RW_SRER[, "sd_add"])
 ```
+
+Examine diagnostics for temperature DLM. Since the upper confidence interval for the Brooks-Gelman-Rubin convergence diagnostic is less than 1.1, we can conclude the chains have converged. 
 
 ```{r Confirm convergence for temperature DLM}
 # BART
 
-# gelman.diag(nimble_out_TempDLM_BART)
-# gelman.plot(nimble_out_TempDLM_BART)
-
-# gelman.diag(nimble_burn_TempDLM_BART)
-# acfplot(nimble_burn_TempDLM_BART)
-# effectiveSize(nimble_burn_TempDLM_BART)
-# cumuplot(nimble_burn_TempDLM_BART, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))
+gelman.diag(nimble_burn_TempDLM_BART[, "sd_add"])
 
 # KONZ
 
-# gelman.diag(nimble_out_TempDLM_KONZ)
-# gelman.plot(nimble_out_TempDLM_KONZ)
-
-# gelman.diag(nimble_burn_TempDLM_KONZ)
-# acfplot(nimble_burn_TempDLM_KONZ)
-# effectiveSize(nimble_burn_TempDLM_KONZ)
-# cumuplot(nimble_burn_TempDLM_KONZ, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))
+gelman.diag(nimble_burn_TempDLM_KONZ[, "sd_add"])
 
 # OSBS
 
-# gelman.diag(nimble_out_TempDLM_OSBS)
-# gelman.plot(nimble_out_TempDLM_OSBS)
-
-# gelman.diag(nimble_burn_TempDLM_OSBS)
-# acfplot(nimble_burn_TempDLM_OSBS)
-# effectiveSize(nimble_burn_TempDLM_OSBS)
-# cumuplot(nimble_burn_TempDLM_OSBS, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))
+gelman.diag(nimble_burn_TempDLM_OSBS[, "sd_add"])
 
 # SRER
 
-# gelman.diag(nimble_out_TempDLM_SRER)
-# gelman.plot(nimble_out_TempDLM_SRER)
-
-# gelman.diag(nimble_burn_TempDLM_SRER)
-# acfplot(nimble_burn_TempDLM_SRER)
-# effectiveSize(nimble_burn_TempDLM_SRER)
-# cumuplot(nimble_burn_TempDLM_SRER, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))
+gelman.diag(nimble_burn_TempDLM_SRER[, "sd_add"])
 ```
+
+Convert null (random walk) model output using tidybayes.
 
 ```{r Convert null (random walk) model output using tidybayes}
 # BART
@@ -709,6 +820,8 @@ chain_RW_SRER <- nimble_burn_RW_SRER %>%
   spread_draws(y[day], x[day], sd_add)
 ```
 
+Convert temperature DLM output using tidybayes.
+
 ```{r Convert temperature DLM output using tidybayes}
 # BART
 
@@ -731,177 +844,278 @@ chain_TempDLM_SRER <- nimble_burn_TempDLM_SRER %>%
   spread_draws(y[day], x[day], sd_add)
 ```
 
+Plot null (random walk) model versus observations.
+
 ```{r Plot null (random walk) model versus observations, warning = FALSE}
-colors <- c("#F8766D", "#7CAE00", "#00BFC4", "#C77CFF")
+plot_colors <- c("#F8766D", "#7CAE00", "#00BFC4", "#C77CFF")
 
 # BART
 
-chain_RW_BART %>%
+plot_chain_RW_BART <- chain_RW_BART %>%
   group_by(day) %>%
   summarise(mean = mean(x),
             lower = quantile(x, 0.025),
             upper = quantile(x, 0.975),
             .groups = "drop") %>%
-  mutate(time = target_data_BART_sub$time) %>%
-  ggplot(aes(x = time, y = mean)) +
+  mutate(time = target_data_BART_sub$time)
+
+plot_RW_BART <- ggplot(data = plot_chain_RW_BART, aes(x = time, y = mean)) +
   geom_line() +
   geom_ribbon(aes(ymin = lower, ymax = upper),
               alpha = 0.2,
-              color = colors[1],
-              fill = colors[1]) +
+              color = plot_colors[1],
+              fill = plot_colors[1]) +
   geom_point(data = target_data_BART_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste("Site: BART | Time Period: ", substr(target_data_BART_sub$time[1], 1, 10), " - ", substr(target_data_BART_sub$time[subset_length_timesteps], 1, 10)),
+  labs(title = paste("Site: BART | Time Period: ", substr(target_data_BART_sub$time[1], 1, 10), "to", substr(target_data_BART_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
 
 # KONZ
 
-chain_RW_KONZ %>%
+plot_chain_RW_KONZ <- chain_RW_KONZ %>%
   group_by(day) %>%
   summarise(mean = mean(x),
             lower = quantile(x, 0.025),
             upper = quantile(x, 0.975),
             .groups = "drop") %>%
-  mutate(time = target_data_KONZ_sub$time) %>%
-  ggplot(aes(x = time, y = mean)) +
+  mutate(time = target_data_KONZ_sub$time)
+
+plot_RW_KONZ <- ggplot(data = plot_chain_RW_KONZ, aes(x = time, y = mean)) +
   geom_line() +
   geom_ribbon(aes(ymin = lower, ymax = upper),
               alpha = 0.2,
-              color = colors[2],
-              fill = colors[2]) +
+              color = plot_colors[2],
+              fill = plot_colors[2]) +
   geom_point(data = target_data_KONZ_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste("Site: KONZ | Time Period: ", substr(target_data_KONZ_sub$time[1], 1, 10), " - ", substr(target_data_KONZ_sub$time[subset_length_timesteps], 1, 10)),
+  labs(title = paste("Site: KONZ | Time Period: ", substr(target_data_KONZ_sub$time[1], 1, 10), "to", substr(target_data_KONZ_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
 
 # OSBS
 
-chain_RW_OSBS %>%
+plot_chain_RW_OSBS <- chain_RW_OSBS %>%
   group_by(day) %>%
   summarise(mean = mean(x),
             lower = quantile(x, 0.025),
             upper = quantile(x, 0.975),
             .groups = "drop") %>%
-  mutate(time = target_data_OSBS_sub$time) %>%
-  ggplot(aes(x = time, y = mean)) +
+  mutate(time = target_data_OSBS_sub$time)
+
+plot_RW_OSBS <- ggplot(data = plot_chain_RW_OSBS, aes(x = time, y = mean)) +
   geom_line() +
   geom_ribbon(aes(ymin = lower, ymax = upper),
               alpha = 0.2,
-              color = colors[3],
-              fill = colors[3]) +
+              color = plot_colors[3],
+              fill = plot_colors[3]) +
   geom_point(data = target_data_OSBS_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste("Site: OSBS | Time Period: ", substr(target_data_OSBS_sub$time[1], 1, 10), " - ", substr(target_data_OSBS_sub$time[subset_length_timesteps], 1, 10)),
+  labs(title = paste("Site: OSBS | Time Period: ", substr(target_data_OSBS_sub$time[1], 1, 10), "to", substr(target_data_OSBS_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
 
 # SRER
 
-chain_RW_SRER %>%
+plot_chain_RW_SRER <- chain_RW_SRER %>%
   group_by(day) %>%
   summarise(mean = mean(x),
             lower = quantile(x, 0.025),
             upper = quantile(x, 0.975),
             .groups = "drop") %>%
-  mutate(time = target_data_SRER_sub$time) %>%
-  ggplot(aes(x = time, y = mean)) +
+  mutate(time = target_data_SRER_sub$time)
+
+plot_RW_SRER <- ggplot(data = plot_chain_RW_SRER, aes(x = time, y = mean)) +
   geom_line() +
   geom_ribbon(aes(ymin = lower, ymax = upper),
               alpha = 0.2,
-              color = colors[4],
-              fill = colors[4]) +
+              color = plot_colors[4],
+              fill = plot_colors[4]) +
   geom_point(data = target_data_SRER_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste("Site: SRER | Time Period: ", substr(target_data_SRER_sub$time[1], 1, 10), " - ", substr(target_data_SRER_sub$time[subset_length_timesteps], 1, 10)),
+  labs(title = paste("Site: SRER | Time Period: ", substr(target_data_SRER_sub$time[1], 1, 10), "to", substr(target_data_SRER_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
+
+plot_RW_BART
+plot_RW_KONZ
+plot_RW_OSBS
+plot_RW_SRER
 ```
+
+Plot temperature DLM versus observations.
 
 ```{r Plot temperature DLM versus observations, warning = FALSE}
-
 # BART
 
-chain_TempDLM_BART %>%
+plot_chain_TempDLM_BART <- chain_TempDLM_BART %>%
   group_by(day) %>%
   summarise(mean = mean(x),
             lower = quantile(x, 0.025),
             upper = quantile(x, 0.975),
             .groups = "drop") %>%
-  mutate(time = target_data_BART_sub$time) %>%
-  ggplot(aes(x = time, y = mean)) +
+  mutate(time = target_data_BART_sub$time)
+
+plot_TempDLM_BART <- ggplot(data = plot_chain_TempDLM_BART, aes(x = time, y = mean)) +
   geom_line() +
   geom_ribbon(aes(ymin = lower, ymax = upper),
               alpha = 0.2,
-              color = colors[1],
-              fill = colors[1]) +
+              color = plot_colors[1],
+              fill = plot_colors[1]) +
   geom_point(data = target_data_BART_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste("Site: BART | Time Period: ", substr(target_data_BART_sub$time[1], 1, 10), " - ", substr(target_data_BART_sub$time[subset_length_timesteps], 1, 10)),
+  labs(title = paste("Site: BART | Time Period: ", substr(target_data_BART_sub$time[1], 1, 10), "to", substr(target_data_BART_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
 
 # KONZ
 
-chain_TempDLM_KONZ %>%
+plot_chain_TempDLM_KONZ <- chain_TempDLM_KONZ %>%
   group_by(day) %>%
   summarise(mean = mean(x),
             lower = quantile(x, 0.025),
             upper = quantile(x, 0.975),
             .groups = "drop") %>%
-  mutate(time = target_data_KONZ_sub$time) %>%
-  ggplot(aes(x = time, y = mean)) +
+  mutate(time = target_data_KONZ_sub$time)
+
+plot_TempDLM_KONZ <- ggplot(data = plot_chain_TempDLM_KONZ, aes(x = time, y = mean)) +
   geom_line() +
   geom_ribbon(aes(ymin = lower, ymax = upper),
               alpha = 0.2,
-              color = colors[2],
-              fill = colors[2]) +
+              color = plot_colors[2],
+              fill = plot_colors[2]) +
   geom_point(data = target_data_KONZ_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste("Site: KONZ | Time Period: ", substr(target_data_KONZ_sub$time[1], 1, 10), " - ", substr(target_data_KONZ_sub$time[subset_length_timesteps], 1, 10)),
+  labs(title = paste("Site: KONZ | Time Period: ", substr(target_data_KONZ_sub$time[1], 1, 10), "to", substr(target_data_KONZ_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
 
 # OSBS
 
-chain_TempDLM_OSBS %>%
+plot_chain_TempDLM_OSBS <- chain_TempDLM_OSBS %>%
   group_by(day) %>%
   summarise(mean = mean(x),
             lower = quantile(x, 0.025),
             upper = quantile(x, 0.975),
             .groups = "drop") %>%
-  mutate(time = target_data_OSBS_sub$time) %>%
-  ggplot(aes(x = time, y = mean)) +
+  mutate(time = target_data_OSBS_sub$time)
+
+plot_TempDLM_OSBS <- ggplot(data = plot_chain_TempDLM_OSBS, aes(x = time, y = mean)) +
   geom_line() +
   geom_ribbon(aes(ymin = lower, ymax = upper),
               alpha = 0.2,
-              color = colors[3],
-              fill = colors[3]) +
+              color = plot_colors[3],
+              fill = plot_colors[3]) +
   geom_point(data = target_data_OSBS_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste("Site: OSBS | Time Period: ", substr(target_data_OSBS_sub$time[1], 1, 10), " - ", substr(target_data_OSBS_sub$time[subset_length_timesteps], 1, 10)),
+  labs(title = paste("Site: OSBS | Time Period: ", substr(target_data_OSBS_sub$time[1], 1, 10), "to", substr(target_data_OSBS_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
 
 # SRER
 
-chain_TempDLM_SRER %>%
+plot_chain_TempDLM_SRER <- chain_TempDLM_SRER %>%
   group_by(day) %>%
   summarise(mean = mean(x),
             lower = quantile(x, 0.025),
             upper = quantile(x, 0.975),
             .groups = "drop") %>%
-  mutate(time = target_data_SRER_sub$time) %>%
-  ggplot(aes(x = time, y = mean)) +
+  mutate(time = target_data_SRER_sub$time)
+
+plot_TempDLM_SRER <- ggplot(data = plot_chain_TempDLM_SRER, aes(x = time, y = mean)) +
   geom_line() +
   geom_ribbon(aes(ymin = lower, ymax = upper),
               alpha = 0.2,
-              color = colors[4],
-              fill = colors[4]) +
+              color = plot_colors[4],
+              fill = plot_colors[4]) +
   geom_point(data = target_data_SRER_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste("Site: SRER | Time Period: ", substr(target_data_SRER_sub$time[1], 1, 10), " - ", substr(target_data_SRER_sub$time[subset_length_timesteps], 1, 10)),
+  labs(title = paste("Site: SRER | Time Period: ", substr(target_data_SRER_sub$time[1], 1, 10), "to", substr(target_data_SRER_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
+
+plot_TempDLM_BART
+plot_TempDLM_KONZ
+plot_TempDLM_OSBS
+plot_TempDLM_SRER
 ```
+
+Compare temperature DLM to random walk fit. As can be seen, the two models only slightly differ when there is a relatively large gap in the data.
+
+```{r Compare temperature DLM to random walk, warning = FALSE}
+# BART
+
+comparison_plot_BART <- ggplot() +
+  geom_line(data = plot_chain_RW_BART, aes(x = time, y = mean, color = "1")) +
+  geom_line(data = plot_chain_TempDLM_BART, aes(x = time, y = mean, color = "2")) +
+  geom_ribbon(data = plot_chain_RW_BART, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"), alpha = 0.2) +
+  geom_ribbon(data = plot_chain_TempDLM_BART, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"), alpha = 0.2) +
+  geom_point(data = target_data_BART_sub, aes(x = time, y = nee), color = "black") +
+  scale_fill_manual(name = "Model", values = c("gray", plot_colors[1]), labels = c("Random Walk", "Temp. DLM")) +
+  scale_color_manual(name = "Model", values = c("gray", plot_colors[1]), labels = c("Random Walk", "Temp. DLM")) +
+  labs(title = paste("Site: BART | Time Period: ", substr(target_data_BART_sub$time[1], 1, 10), "to", substr(target_data_BART_sub$time[subset_length_timesteps], 1, 10)),
+       x = "Time (UTC)",
+       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+  theme_bw()
+
+# KONZ
+
+comparison_plot_KONZ <- ggplot() +
+  geom_line(data = plot_chain_RW_KONZ, aes(x = time, y = mean, color = "1")) +
+  geom_line(data = plot_chain_TempDLM_KONZ, aes(x = time, y = mean, color = "2")) +
+  geom_ribbon(data = plot_chain_RW_KONZ, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"), alpha = 0.2) +
+  geom_ribbon(data = plot_chain_TempDLM_KONZ, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"), alpha = 0.2) +
+  geom_point(data = target_data_KONZ_sub, aes(x = time, y = nee), color = "black") +
+  scale_fill_manual(name = "Model", values = c("gray", plot_colors[2]), labels = c("Random Walk", "Temp. DLM")) +
+  scale_color_manual(name = "Model", values = c("gray", plot_colors[2]), labels = c("Random Walk", "Temp. DLM")) +
+  labs(title = paste("Site: KONZ | Time Period: ", substr(target_data_KONZ_sub$time[1], 1, 10), "to", substr(target_data_KONZ_sub$time[subset_length_timesteps], 1, 10)),
+       x = "Time (UTC)",
+       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+  theme_bw()
+
+# OSBS
+
+comparison_plot_OSBS <- ggplot() +
+  geom_line(data = plot_chain_RW_OSBS, aes(x = time, y = mean, color = "1")) +
+  geom_line(data = plot_chain_TempDLM_OSBS, aes(x = time, y = mean, color = "2")) +
+  geom_ribbon(data = plot_chain_RW_OSBS, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"), alpha = 0.2) +
+  geom_ribbon(data = plot_chain_TempDLM_OSBS, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"), alpha = 0.2) +
+  geom_point(data = target_data_OSBS_sub, aes(x = time, y = nee), color = "black") +
+  scale_fill_manual(name = "Model", values = c("gray", plot_colors[3]), labels = c("Random Walk", "Temp. DLM")) +
+  scale_color_manual(name = "Model", values = c("gray", plot_colors[3]), labels = c("Random Walk", "Temp. DLM")) +
+  labs(title = paste("Site: OSBS | Time Period: ", substr(target_data_OSBS_sub$time[1], 1, 10), "to", substr(target_data_OSBS_sub$time[subset_length_timesteps], 1, 10)),
+       x = "Time (UTC)",
+       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+  theme_bw()
+
+# SRER
+
+comparison_plot_SRER <- ggplot() +
+  geom_line(data = plot_chain_RW_SRER, aes(x = time, y = mean, color = "1")) +
+  geom_line(data = plot_chain_TempDLM_SRER, aes(x = time, y = mean, color = "2")) +
+  geom_ribbon(data = plot_chain_RW_SRER, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"), alpha = 0.2) +
+  geom_ribbon(data = plot_chain_TempDLM_SRER, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"), alpha = 0.2) +
+  geom_point(data = target_data_SRER_sub, aes(x = time, y = nee), color = "black") +
+  scale_fill_manual(name = "Model", values = c("gray", plot_colors[4]), labels = c("Random Walk", "Temp. DLM")) +
+  scale_color_manual(name = "Model", values = c("gray", plot_colors[4]), labels = c("Random Walk", "Temp. DLM")) +
+  labs(title = paste("Site: SRER | Time Period: ", substr(target_data_SRER_sub$time[1], 1, 10), "to", substr(target_data_SRER_sub$time[subset_length_timesteps], 1, 10)),
+       x = "Time (UTC)",
+       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+  theme_bw()
+
+comparison_plot_BART
+comparison_plot_KONZ
+comparison_plot_OSBS
+comparison_plot_SRER
+```
+
+```{r}
+ggplot() +
+  geom_point(data = temp_data_BART_sub, aes(x = seq(1, length(temp_data_BART_sub$temp)), y = temp, color = "1")) +
+  geom_point(data = temp_data_KONZ_sub, aes(x = seq(1, length(temp_data_BART_sub$temp)), y = temp, color = "2")) +
+  geom_point(data = temp_data_OSBS_sub, aes(x = seq(1, length(temp_data_BART_sub$temp)), y = temp, color = "3")) +
+  geom_point(data = temp_data_SRER_sub, aes(x = seq(1, length(temp_data_BART_sub$temp)), y = temp, color = "4")) +
+  scale_color_manual(values = plot_colors, labels = c("BART", "KONZ", "OSBS", "SRER")) +
+  theme_bw()
+```
+
