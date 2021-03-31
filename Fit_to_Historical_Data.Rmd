@@ -31,7 +31,7 @@ temp_data <- read.csv("temp_gapfill.csv")
 # Time zone in target data is UTC according to https://docs.google.com/document/d/1l7sxBk-z-GHTlk50rdxP0lPTwJzFJ2gykclINkMsWcc/edit
 
 target_data$time <- ymd_hms(target_data$time, tz = "UTC")
-temp_data$startDateTime <- ymd_hms(temp_data$startDateTime, tz = "UTC")  # Ask Marcus to verify UTC
+temp_data$startDateTime <- ymd_hms(temp_data$startDateTime, tz = "UTC")
 
 # Convert siteID column from character to factor
 
