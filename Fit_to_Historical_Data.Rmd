@@ -153,7 +153,7 @@ BART_start_i <- NA  # Initialize BART starting index
 for(i in 1:(length(target_data_BART$nee) - subset_length_timesteps + 1)){
   
   num_NAs <- sum(is.na(target_data_BART$nee[i:(i + subset_length_timesteps - 1)]))  # Count number of NEE NAs in data subset
-  
+
   if(num_NAs <= min_n_NAs & sum(substr(target_data_BART$time[i], 6, 7) != c("12", "01", "02", "03")) == 4){  # Note: Using <= so that most recent data is used; also, excluding data from December through March
     
     BART_start_i <- i  # Save new starting index
@@ -439,8 +439,6 @@ for(i in 1:length(sd_obs_SRER_sub)){
   
 }
 
-sd_obs_SRER_sub <- sd_obs_SRER_sub*8
-
 # Match temperature data to subset NEE data
 
 SRER_temp_i <- match(target_data_SRER_sub$time, temp_data_SRER$startDateTime)
@@ -498,27 +496,27 @@ for(i in 1:nchains){
   
   # BART
   
-  y.samp <- sample(target_data_BART_sub$nee, length(target_data_BART_sub$nee), replace = TRUE)
+  y.samp <- sample(nee_interp_BART_sub$y, length(nee_interp_BART_sub$y), replace = TRUE)
   inits_RW_BART[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
-                             x = target_data_BART_sub$nee)
+                             x = nee_interp_BART_sub$y)
   
   # KONZ
   
-  y.samp <- sample(target_data_KONZ_sub$nee, length(target_data_KONZ_sub$nee), replace = TRUE)
+  y.samp <- sample(nee_interp_KONZ_sub$y, length(nee_interp_KONZ_sub$y), replace = TRUE)
   inits_RW_KONZ[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
-                             x = target_data_KONZ_sub$nee)
+                             x = nee_interp_KONZ_sub$y)
   
   # OSBS
   
-  y.samp <- sample(target_data_OSBS_sub$nee, length(target_data_OSBS_sub$nee), replace = TRUE)
+  y.samp <- sample(nee_interp_OSBS_sub$y, length(nee_interp_OSBS_sub$y), replace = TRUE)
   inits_RW_OSBS[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
-                             x = target_data_OSBS_sub$nee)
+                             x = nee_interp_OSBS_sub$y)
   
   # SRER
   
-  y.samp <- sample(target_data_SRER_sub$nee, length(target_data_SRER_sub$nee), replace = TRUE)
+  y.samp <- sample(nee_interp_SRER_sub$y, length(nee_interp_SRER_sub$y), replace = TRUE)
   inits_RW_SRER[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
-                             x = target_data_SRER_sub$nee)
+                             x = nee_interp_SRER_sub$y)
   
 }
 ```
@@ -539,30 +537,30 @@ for(i in 1:nchains){
   
   # BART
   
-  y.samp <- sample(target_data_BART_sub$nee, length(target_data_BART_sub$nee), replace = TRUE)
+  y.samp <- sample(nee_interp_BART_sub$y, length(nee_interp_BART_sub$y), replace = TRUE)
   inits_TempDLM_BART[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
-                                  x = target_data_BART_sub$nee,
+                                  x = nee_interp_BART_sub$y,
                                   b1 = rnorm(1, mean = 0, sd = 1))
   
   # KONZ
   
-  y.samp <- sample(target_data_KONZ_sub$nee, length(target_data_KONZ_sub$nee), replace = TRUE)
+  y.samp <- sample(nee_interp_KONZ_sub$y, length(nee_interp_KONZ_sub$y), replace = TRUE)
   inits_TempDLM_KONZ[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
-                                  x = target_data_KONZ_sub$nee,
+                                  x = nee_interp_KONZ_sub$y,
                                   b1 = rnorm(1, mean = 0, sd = 1))
   
   # OSBS
   
-  y.samp <- sample(target_data_OSBS_sub$nee, length(target_data_OSBS_sub$nee), replace = TRUE)
+  y.samp <- sample(nee_interp_OSBS_sub$y, length(nee_interp_OSBS_sub$y), replace = TRUE)
   inits_TempDLM_OSBS[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
-                                  x = target_data_OSBS_sub$nee,
+                                  x = nee_interp_OSBS_sub$y,
                                   b1 = rnorm(1, mean = 0, sd = 1))
   
   # SRER
   
-  y.samp <- sample(target_data_SRER_sub$nee, length(target_data_SRER_sub$nee), replace = TRUE)
+  y.samp <- sample(nee_interp_SRER_sub$y, length(nee_interp_SRER_sub$y), replace = TRUE)
   inits_TempDLM_SRER[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
-                                  x = target_data_SRER_sub$nee,
+                                  x = nee_interp_SRER_sub$y,
                                   b1 = rnorm(1, mean = 0, sd = 1))
   
 }
@@ -781,18 +779,22 @@ Examine diagnostics for temperature DLM. Since the upper confidence interval for
 ```{r Confirm convergence for temperature DLM}
 # BART
 
+gelman.diag(nimble_burn_TempDLM_BART[, "b1"])
 gelman.diag(nimble_burn_TempDLM_BART[, "sd_add"])
 
 # KONZ
 
+gelman.diag(nimble_burn_TempDLM_KONZ[, "b1"])
 gelman.diag(nimble_burn_TempDLM_KONZ[, "sd_add"])
 
 # OSBS
 
+gelman.diag(nimble_burn_TempDLM_OSBS[, "b1"])
 gelman.diag(nimble_burn_TempDLM_OSBS[, "sd_add"])
 
 # SRER
 
+gelman.diag(nimble_burn_TempDLM_SRER[, "b1"])
 gelman.diag(nimble_burn_TempDLM_SRER[, "sd_add"])
 ```
 
@@ -1108,14 +1110,3 @@ comparison_plot_KONZ
 comparison_plot_OSBS
 comparison_plot_SRER
 ```
-
-```{r}
-ggplot() +
-  geom_point(data = temp_data_BART_sub, aes(x = seq(1, length(temp_data_BART_sub$temp)), y = temp, color = "1")) +
-  geom_point(data = temp_data_KONZ_sub, aes(x = seq(1, length(temp_data_BART_sub$temp)), y = temp, color = "2")) +
-  geom_point(data = temp_data_OSBS_sub, aes(x = seq(1, length(temp_data_BART_sub$temp)), y = temp, color = "3")) +
-  geom_point(data = temp_data_SRER_sub, aes(x = seq(1, length(temp_data_BART_sub$temp)), y = temp, color = "4")) +
-  scale_color_manual(values = plot_colors, labels = c("BART", "KONZ", "OSBS", "SRER")) +
-  theme_bw()
-```
-
