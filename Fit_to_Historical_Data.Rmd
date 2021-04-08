@@ -106,7 +106,7 @@ TempDLM <- nimbleCode({
   
   x[1] ~ dnorm(x_ic, sd = sd_ic)
   sd_add ~ dunif(0, 100)
-  b1 ~ dnorm(0, 100)  # Temperature effect coefficient
+  b1 ~ dnorm(0, sd = 100)  # Temperature effect coefficient
   
   # Process model
   
