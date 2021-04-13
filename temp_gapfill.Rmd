@@ -12,29 +12,39 @@ library(ggplot2)
 ## Grab data from NEON
 
 ```{r}
-tempHumid <- loadByProduct(dpID = "DP1.00098.001",
+# tempHumid <- loadByProduct(dpID = "DP1.00098.001",
+#                             site = c("BART", "KONZ", "OSBS", "SRER"),
+#                             startdate = "2017-02",
+#                             enddate = "2021-03",
+#                             timeIndex = 30,
+#                             check.size = F)
+
+# TRAAT = triple aspirated air temperature
+
+TRAAT_data <- loadByProduct(dpID = "DP1.00003.001",
                             site = c("BART", "KONZ", "OSBS", "SRER"),
                             startdate = "2017-02",
-                            enddate = "2021-01",
+                            enddate = "2021-03",
                             timeIndex = 30,
                             check.size = F)
 ```
 
 ## Temp DF
 
-That's around 90 MB of data, which I have saved locally, change setwd as needed or alter to use tempHumid data.frame
+That's around 90 MB of data, which I have saved locally, change setwd as needed or alter to use tempHumid data.frame. (Potentially no longer necessary using TRAAT data.)
 
 ```{r}
-setwd("~/Virginia Tech/FREC 5984 EM&F/NEON")
-temp <- read.csv("temp_dat.csv")[,c("siteID","startDateTime","tempRHMean")]
+# setwd("~/Virginia Tech/FREC 5984 EM&F/NEON")
+# temp <- read.csv("temp_dat.csv")[,c("siteID","startDateTime","tempRHMean")]
+temp <- TRAAT_data$TAAT_30min[,c("siteID","startDateTime","tempTripleMean")]
 temp$date_noyear <- substr(temp$startDateTime, 6, 19)
 temp$ID <- paste(temp$siteID, temp$date_noyear, sep = "_")
 
-temp_agg <- aggregate(cbind(tempRHMean) ~ siteID + date_noyear, data = temp, FUN = mean, na.rm = T)
+temp_agg <- aggregate(cbind(tempTripleMean) ~ siteID + date_noyear, data = temp, FUN = mean, na.rm = T)
 temp_agg$ID <- paste(temp_agg$siteID, temp_agg$date_noyear, sep = "_")
 
-temp$tempRHMean[is.na(temp$tempRHMean)] <- 1000
-temp$temp <- ifelse(temp$tempRHMean == 1000, temp_agg$tempRHMean[match(temp$ID, temp_agg$ID)], temp$tempRHMean)
+temp$tempTripleMean[is.na(temp$tempTripleMean)] <- 1000
+temp$temp <- ifelse(temp$tempTripleMean == 1000, temp_agg$tempTripleMean[match(temp$ID, temp_agg$ID)], temp$tempTripleMean)
 
 temp <- temp[,c("siteID", "startDateTime", "temp")]
 
@@ -43,5 +53,5 @@ ggplot(data = temp, aes(x = startDateTime, y = temp)) +
   labs(title = "Temperature", x = "Date", y = "Air Temp (ºC, 30 min. mean)") +
   facet_wrap(~siteID)
 
-write.csv(temp, file = "temp.csv", row.names = F)
+write.csv(temp, file = "temp_gapfill.csv", row.names = F)
 ```

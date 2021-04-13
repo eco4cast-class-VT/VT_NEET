@@ -20,7 +20,7 @@ Read in, format, and visualize data.
 ```{r Read in and visualize data, warning = FALSE}
 # Read in target data
 
-target_data <- read.csv("terrestrial_30min-targets.csv")
+target_data <- readr::read_csv("https://data.ecoforecast.org/targets/terrestrial/terrestrial_30min-targets.csv.gz", guess_max = 1e6)
 
 # Read in gap-filled temperature data
 
@@ -106,7 +106,7 @@ TempDLM <- nimbleCode({
   
   x[1] ~ dnorm(x_ic, sd = sd_ic)
   sd_add ~ dunif(0, 100)
-  b1 ~ dnorm(0, 100)  # Temperature effect coefficient
+  b1 ~ dnorm(0, sd = 100)  # Temperature effect coefficient
   
   # Process model
   
