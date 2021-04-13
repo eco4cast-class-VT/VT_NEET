@@ -1,0 +1,5 @@
+#.gitignore
+#Ignore everything in this directory except this file.  This preserves the directory as part of the repository but keeps the data itself from being synced.
+*
+!.gitignore
+
