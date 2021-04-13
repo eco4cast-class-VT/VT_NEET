@@ -32,6 +32,8 @@ temp_fc_BART <- subset(temp_fc, temp_fc$siteID == "BART")
 temp_fc_KONZ <- subset(temp_fc, temp_fc$siteID == "KONZ")
 temp_fc_OSBS <- subset(temp_fc, temp_fc$siteID == "OSBS")
 temp_fc_SRER <- subset(temp_fc, temp_fc$siteID == "SRER")
+
+#write.csv(temp_fc, file = "temp_fc.csv", row.names=F)
 ```
 
 ```{r}
