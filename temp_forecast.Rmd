@@ -1,0 +1,130 @@
+---
+title: "Temp Forecast"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#remotes::install_github("eco4cast/neon4cast")
+library(dplyr)
+library(neon4cast)
+library(ggplot2)
+library(lubridate)
+```
+
+```{r}
+download_noaa(siteID = c("BART", "KONZ", "OSBS", "SRER"),
+              interval = "1hr",
+              date = "2021-03-01",
+              cycle = "00",
+              dir = "~/Virginia Tech/FREC 5984 EM&F/NEON/Initial Forecast/00")
+```
+
+```{r}
+#N.B. air_temperature data are in Kelvin
+
+tempfc <- stack_noaa(dir = "~/Virginia Tech/FREC 5984 EM&F/NEON/Initial Forecast/00")
+tempfc <- subset(tempfc, tempfc$runEndDate == "2021-04-05T00")
+tempfc$tempC <- tempfc$air_temperature - 273.15
+temp_fc <- tempfc[,c("siteID", "ensemble", "time", "tempC")]
+
+temp_fc_BART <- subset(temp_fc, temp_fc$siteID == "BART")
+temp_fc_KONZ <- subset(temp_fc, temp_fc$siteID == "KONZ")
+temp_fc_OSBS <- subset(temp_fc, temp_fc$siteID == "OSBS")
+temp_fc_SRER <- subset(temp_fc, temp_fc$siteID == "SRER")
+```
+
+```{r}
+ggplot(data = temp_fc_BART, aes(x = time, y = tempC)) +
+  geom_line() +
+  labs(title = "BART 35 day forecasted hourly air temperature data", x = "Time", y = "Temperature C") +
+  facet_wrap(~ ensemble) +
+  theme_classic()
+
+ggplot(data = temp_fc_KONZ, aes(x = time, y = tempC)) +
+  geom_line() +
+  labs(title = "KONZ 35 day forecasted hourly air temperature data", x = "Time", y = "Temperature C") +
+  facet_wrap(~ ensemble) +
+  theme_classic()
+
+ggplot(data = temp_fc_OSBS, aes(x = time, y = tempC)) +
+  geom_line() +
+  labs(title = "OSBS 35 day forecasted hourly air temperature data", x = "Time", y = "Temperature C") +
+  facet_wrap(~ ensemble) +
+  theme_classic()
+
+ggplot(data = temp_fc_SRER, aes(x = time, y = tempC)) +
+  geom_line() +
+  labs(title = "SRER 35 day forecasted hourly air temperature data", x = "Time", y = "Temperature C") +
+  facet_wrap(~ ensemble) +
+  theme_classic()
+```
+
+```{r}
+dat_fun <- function(dat){
+  dat1 <- tibble(dat) %>%
+    slice(rep(2:840, each = 2))
+  dat2 <- rbind(dat[1,], dat1, dat[841,])
+  dat3 <- tibble(as.character(rep(dat[1,1], 840)),
+                 as.character(rep(dat[1,2], 840)),
+                 seq(ymd_hm("2021-03-01 0:30"), ymd_hm("2021-04-04 23:30"), by = "hour"),
+                 colMeans(matrix(dat2$tempC, 2)))
+  names(dat3) <- c("siteID", "ensemble", "time", "tempC")
+  dat4 <- rbind(dat, dat3)
+  dat4 <- arrange(dat4, time)
+  return(dat4)
+}
+
+BART_split <- split(temp_fc_BART, temp_fc_BART$ensemble)
+dat <- BART_split[[1]]
+BART_apply <- lapply(BART_split, dat_fun)
+temp_fc_BART30 <- do.call(rbind, BART_apply)
+
+KONZ_split <- split(temp_fc_KONZ, temp_fc_KONZ$ensemble)
+dat <- KONZ_split[[1]]
+KONZ_apply <- lapply(KONZ_split, dat_fun)
+temp_fc_KONZ30 <- do.call(rbind, KONZ_apply)
+
+OSBS_split <- split(temp_fc_OSBS, temp_fc_OSBS$ensemble)
+dat <- OSBS_split[[1]]
+OSBS_apply <- lapply(OSBS_split, dat_fun)
+temp_fc_OSBS30 <- do.call(rbind, OSBS_apply)
+
+SRER_split <- split(temp_fc_SRER, temp_fc_SRER$ensemble)
+dat <- SRER_split[[1]]
+SRER_apply <- lapply(SRER_split, dat_fun)
+temp_fc_SRER30 <- do.call(rbind, SRER_apply)
+```
+
+
+```{r}
+ggplot(data = temp_fc_BART30, aes(x = time, y = tempC)) +
+  geom_line() +
+  labs(title = "BART 35 day forecasted half-hourly interpolated air temperature data", x = "Time", y = "Temperature C") +
+  facet_wrap(~ ensemble) +
+  theme_classic()
+
+ggplot(data = temp_fc_KONZ30, aes(x = time, y = tempC)) +
+  geom_line() +
+  labs(title = "KONZ 35 day forecasted half-hourly interpolated air temperature data", x = "Time", y = "Temperature C") +
+  facet_wrap(~ ensemble) +
+  theme_classic()
+
+ggplot(data = temp_fc_OSBS30, aes(x = time, y = tempC)) +
+  geom_line() +
+  labs(title = "OSBS 35 day forecasted half-hourly interpolated air temperature data", x = "Time", y = "Temperature C") +
+  facet_wrap(~ ensemble) +
+  theme_classic()
+
+ggplot(data = temp_fc_SRER30, aes(x = time, y = tempC)) +
+  geom_line() +
+  labs(title = "SRER 35 day forecasted half-hourly interpolated air temperature data", x = "Time", y = "Temperature C") +
+  facet_wrap(~ ensemble) +
+  theme_classic()
+```
+
+```{r}
+temp_dat <- data.frame(rbind(temp_fc_BART30, temp_fc_KONZ30, temp_fc_OSBS30, temp_fc_SRER30))
+write.csv(temp_dat, file = "temp_fc30.csv", row.names = F)
+```
+
