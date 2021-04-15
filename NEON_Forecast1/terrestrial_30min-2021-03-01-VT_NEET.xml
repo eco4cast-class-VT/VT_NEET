@@ -212,10 +212,10 @@
         </initial_conditions>
         <metadata_standard_version>0.3</metadata_standard_version>
         <model_description>
-          <forecast_model_id>https://github.com/eco4cast-class-VT/VT_NEET/commit/e6c865d3cfde3106a0915831a9d47190e3c2c58e</forecast_model_id>
-          <name>state-space</name>
+          <forecast_model_id>"VT_NEET_DLM</forecast_model_id>
+          <name>State-space temperature-dependent dynamic linear model</name>
           <repository>https://github.com/eco4cast-class-VT/VT_NEET</repository>
-          <type>process</type>
+          <type>empirical</type>
         </model_description>
         <obs_error>
           <assimilation>
@@ -234,7 +234,7 @@
         </obs_error>
         <parameters>
           <assimilation>
-            <complexity>2</complexity>
+            <complexity>1</complexity>
             <reference>NA</reference>
             <type>refit</type>
           </assimilation>
@@ -273,7 +273,7 @@
           </propagation>
           <status>absent</status>
         </random_effects>
-        <timestep>1 hour</timestep>
+        <timestep>0.5 hour</timestep>
       </forecast>
     </metadata>
   </additionalMetadata>
