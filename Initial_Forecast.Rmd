@@ -721,7 +721,7 @@ ensemble_size <- 1000  # Specify ensemble size
 
 forecast_length <- 35 * 24 * 2 + 1 # Number of time steps in forecast
 
-NOAA_temp_forecast <- read.csv(text = getURL("https://raw.githubusercontent.com/eco4cast-class-VT/VT_NEET/master/temp_fc30.csv"))  # Read in NOAA GEFS forecasts
+NOAA_temp_forecast <- read.csv(text = getURL("https://raw.githubusercontent.com/eco4cast-class-VT/VT_NEET/master/temp_fc30_april.csv"))  # Read in NOAA GEFS forecasts
 ```
 
 Generate forecast for BART.
