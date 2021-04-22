@@ -1,0 +1,3 @@
+#.gitignore
+#Ignore any forecast CSV in this directory, which is likely too big for GitHub.
+*.csv
