@@ -24,7 +24,7 @@ download_noaa(siteID = c("BART", "KONZ", "OSBS", "SRER"),
 #N.B. air_temperature data are in Kelvin
 
 tempfc <- stack_noaa(dir = "~/Virginia Tech/FREC 5984 EM&F/NEON/Initial Forecast/00")
-tempfc <- subset(tempfc, tempfc$runEndDate == "2021-05-05T00")
+tempfc <- subset(tempfc, tempfc$runEndDate == "2021-05-06T00")
 tempfc$tempC <- tempfc$air_temperature - 273.15
 temp_fc <- tempfc[,c("siteID", "ensemble", "time", "tempC")]
 
@@ -69,7 +69,7 @@ dat_fun <- function(dat){
   dat2 <- rbind(dat[1,], dat1, dat[841,])
   dat3 <- tibble(as.character(rep(dat[1,1], 840)),
                  as.character(rep(dat[1,2], 840)),
-                 seq(ymd_hm("2021-03-01 0:30"), ymd_hm("2021-04-04 23:30"), by = "hour"),
+                 seq(ymd_hm("2021-04-01 0:30"), ymd_hm("2021-05-05 23:30"), by = "hour"),
                  colMeans(matrix(dat2$tempC, 2)))
   names(dat3) <- c("siteID", "ensemble", "time", "tempC")
   dat4 <- rbind(dat, dat3)
@@ -127,6 +127,6 @@ ggplot(data = temp_fc_SRER30, aes(x = time, y = tempC)) +
 
 ```{r}
 temp_dat <- data.frame(rbind(temp_fc_BART30, temp_fc_KONZ30, temp_fc_OSBS30, temp_fc_SRER30))
-write.csv(temp_dat, file = "temp_fc30.csv", row.names = F)
+write.csv(temp_dat, file = "temp_fc30_april.csv", row.names = F)
 ```
 
