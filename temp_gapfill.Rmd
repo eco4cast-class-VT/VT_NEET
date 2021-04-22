@@ -24,7 +24,7 @@ library(ggplot2)
 TRAAT_data <- loadByProduct(dpID = "DP1.00003.001",
                             site = c("BART", "KONZ", "OSBS", "SRER"),
                             startdate = "2017-02",
-                            enddate = "2021-03",
+                            enddate = "2021-04",
                             timeIndex = 30,
                             check.size = F)
 ```
