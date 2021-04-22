@@ -1245,7 +1245,7 @@ plot_TempDLM_SRER <- ggplot() +
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
-f
+
 plot_TempDLM_BART
 plot_TempDLM_KONZ
 plot_TempDLM_OSBS
