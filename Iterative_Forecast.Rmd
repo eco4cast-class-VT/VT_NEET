@@ -1,7 +1,7 @@
 ---
-title: "FREC 5984 Project: Initial Forecast"
+title: "FREC 5984 Project: Iterative Forecast"
 author: "VT NEE Team: Josh Rady, Marcus Taylor, and Tyler Weiglein"
-date: "15 Apr 2021"
+date: "29 Apr 2021"
 output: html_document
 ---
 
