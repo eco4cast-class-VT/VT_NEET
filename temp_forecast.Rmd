@@ -15,7 +15,7 @@ library(lubridate)
 ```{r}
 download_noaa(siteID = c("BART", "KONZ", "OSBS", "SRER"),
               interval = "1hr",
-              date = "2021-03-01",
+              date = "2021-04-01",
               cycle = "00",
               dir = "~/Virginia Tech/FREC 5984 EM&F/NEON/Initial Forecast/00")
 ```
@@ -24,7 +24,7 @@ download_noaa(siteID = c("BART", "KONZ", "OSBS", "SRER"),
 #N.B. air_temperature data are in Kelvin
 
 tempfc <- stack_noaa(dir = "~/Virginia Tech/FREC 5984 EM&F/NEON/Initial Forecast/00")
-tempfc <- subset(tempfc, tempfc$runEndDate == "2021-04-05T00")
+tempfc <- subset(tempfc, tempfc$runEndDate == "2021-05-05T00")
 tempfc$tempC <- tempfc$air_temperature - 273.15
 temp_fc <- tempfc[,c("siteID", "ensemble", "time", "tempC")]
 
@@ -33,7 +33,7 @@ temp_fc_KONZ <- subset(temp_fc, temp_fc$siteID == "KONZ")
 temp_fc_OSBS <- subset(temp_fc, temp_fc$siteID == "OSBS")
 temp_fc_SRER <- subset(temp_fc, temp_fc$siteID == "SRER")
 
-#write.csv(temp_fc, file = "temp_fc.csv", row.names=F)
+write.csv(temp_fc, file = "temp_fc_april.csv", row.names=F)
 ```
 
 ```{r}
