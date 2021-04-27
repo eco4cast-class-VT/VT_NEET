@@ -35,6 +35,13 @@ direct_diffuse_pyranometer_data <- loadByProduct(dpID = "DP1.00014.001",
                             timeIndex = 30,
                             check.size = F)
 
+net_radiometer_data <- loadByProduct(dpID = "DP1.00023.001",
+                            site = c("BART", "KONZ", "OSBS", "SRER"),
+                            startdate = "2020-02",
+                            enddate = "2021-04",
+                            timeIndex = 30,
+                            check.size = F)
+
 # Potential other data products to use for incoming SW: (1) net radiometer (DP1.00023.001), (2) primary pyranometer (DP1.00022.001) [missing BART]
 ```
 
