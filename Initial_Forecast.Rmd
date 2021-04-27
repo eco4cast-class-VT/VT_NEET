@@ -55,8 +55,8 @@ ggplot(data = target_data) +
 # Plot data before forecast time period
 
 ggplot(data = filter(target_data,
-                     time >= "2021-03-01",
-                     time < "2021-04-01")) +
+                     time >= "2021-02-01",
+                     time < "2021-03-01")) +
   geom_point(aes(x = time, y = nee, color = siteID)) +
   facet_grid(siteID ~ .) + 
   labs(title = "Example Time Period: 01 Mar 2021 - 31 Mar 2021",
@@ -117,7 +117,7 @@ temp_data_BART <- filter(temp_data, siteID == "BART")
 
 # Specify time period end date and time
 
-end_date_time_BART <- ymd_hms("2021-03-31 23:30:00", tz = "UTC")
+end_date_time_BART <- ymd_hms("2021-02-28 23:30:00", tz = "UTC")
 
 # Match time period end date and time to index value
 
@@ -183,7 +183,7 @@ temp_data_KONZ <- filter(temp_data, siteID == "KONZ")
 
 # Specify time period end date and time
 
-end_date_time_KONZ <- ymd_hms("2021-03-31 23:30:00", tz = "UTC")
+end_date_time_KONZ <- ymd_hms("2021-02-28 23:30:00", tz = "UTC")
 
 # Match time period end date and time to index value
 
@@ -249,7 +249,7 @@ temp_data_OSBS <- filter(temp_data, siteID == "OSBS")
 
 # Specify time period end date and time
 
-end_date_time_OSBS <- ymd_hms("2021-03-31 23:30:00", tz = "UTC")
+end_date_time_OSBS <- ymd_hms("2021-02-28 23:30:00", tz = "UTC")
 
 # Match time period end date and time to index value
 
@@ -315,7 +315,7 @@ temp_data_SRER <- filter(temp_data, siteID == "SRER")
 
 # Specify time period end date and time
 
-end_date_time_SRER <- ymd_hms("2021-03-31 23:30:00", tz = "UTC")
+end_date_time_SRER <- ymd_hms("2021-02-28 23:30:00", tz = "UTC")
 
 # Match time period end date and time to index value
 
@@ -721,7 +721,7 @@ ensemble_size <- 1000  # Specify ensemble size
 
 forecast_length <- 35 * 24 * 2 + 1 # Number of time steps in forecast
 
-NOAA_temp_forecast <- read.csv(text = getURL("https://raw.githubusercontent.com/eco4cast-class-VT/VT_NEET/master/temp_fc30_april.csv"))  # Read in NOAA GEFS forecasts
+NOAA_temp_forecast <- read.csv(text = getURL("https://raw.githubusercontent.com/eco4cast-class-VT/VT_NEET/master/temp_fc30.csv"))  # Read in NOAA GEFS forecasts
 ```
 
 Generate forecast for BART.
