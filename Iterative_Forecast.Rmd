@@ -1,6 +1,6 @@
 ---
 title: "FREC 5984 Project: Iterative Forecast"
-author: "VT NEE Team: Josh Rady, Marcus Taylor, and Tyler Weiglein"
+author: "VT NEE Team: Joshua Rady, Marcus Taylor, and Tyler Weiglein"
 date: "29 Apr 2021"
 output: html_document
 ---
@@ -1152,102 +1152,144 @@ Plot forecasts (with fitted model and observations).
 ```{r Plot forecasts, warning = FALSE}
 # BART
 
-plot_NEE_forecast_BART <- NEE_forecast_BART %>%
-  group_by(time) %>%
-  summarise(mean = mean(nee),
-            lower = quantile(nee, 0.025),
-            upper = quantile(nee, 0.975),
-            .groups = "drop")
-
-plot_TempDLM_BART <- ggplot() +
-  geom_line(data = plot_chain_TempDLM_BART, aes(x = time, y = mean, color = "1")) +
-  geom_line(data = plot_NEE_forecast_BART, aes(x = time, y = mean, color = "2")) +
-  geom_ribbon(data = plot_chain_TempDLM_BART, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
-              alpha = 0.2) +
-  geom_ribbon(data = plot_NEE_forecast_BART, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
-              alpha = 0.2) +
-  geom_point(data = target_data_BART_sub, aes(x = time, y = nee), color = "black") +
-  scale_fill_manual(name = "Period", values = c("gray", plot_colors[1]), labels = c("Historical", "Forecast")) +
-  scale_color_manual(name = "Period", values = c("gray", plot_colors[1]), labels = c("Historical", "Forecast")) +
-  labs(title = paste("Site: BART | Time Period: ", substr(plot_chain_TempDLM_BART$time[1], 1, 10), "to", substr(plot_NEE_forecast_BART$time[length(plot_NEE_forecast_BART$time)], 1, 10)),
-       x = "Time (UTC)",
-       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
-
-# KONZ
-
-plot_NEE_forecast_KONZ <- NEE_forecast_KONZ %>%
-  group_by(time) %>%
-  summarise(mean = mean(nee),
-            lower = quantile(nee, 0.025),
-            upper = quantile(nee, 0.975),
-            .groups = "drop")
-
-plot_TempDLM_KONZ <- ggplot() +
-  geom_line(data = plot_chain_TempDLM_KONZ, aes(x = time, y = mean, color = "1")) +
-  geom_line(data = plot_NEE_forecast_KONZ, aes(x = time, y = mean, color = "2")) +
-  geom_ribbon(data = plot_chain_TempDLM_KONZ, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
-              alpha = 0.2) +
-  geom_ribbon(data = plot_NEE_forecast_KONZ, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
-              alpha = 0.2) +
-  geom_point(data = target_data_KONZ_sub, aes(x = time, y = nee), color = "black") +
-  scale_fill_manual(name = "Period", values = c("gray", plot_colors[2]), labels = c("Historical", "Forecast")) +
-  scale_color_manual(name = "Period", values = c("gray", plot_colors[2]), labels = c("Historical", "Forecast")) +
-  labs(title = paste("Site: KONZ | Time Period: ", substr(plot_chain_TempDLM_KONZ$time[1], 1, 10), "to", substr(plot_NEE_forecast_KONZ$time[length(plot_NEE_forecast_KONZ$time)], 1, 10)),
-       x = "Time (UTC)",
-       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
-
-# OSBS
-
-plot_NEE_forecast_OSBS <- NEE_forecast_OSBS %>%
-  group_by(time) %>%
-  summarise(mean = mean(nee),
-            lower = quantile(nee, 0.025),
-            upper = quantile(nee, 0.975),
-            .groups = "drop")
-
-plot_TempDLM_OSBS <- ggplot() +
-  geom_line(data = plot_chain_TempDLM_OSBS, aes(x = time, y = mean, color = "1")) +
-  geom_line(data = plot_NEE_forecast_OSBS, aes(x = time, y = mean, color = "2")) +
-  geom_ribbon(data = plot_chain_TempDLM_OSBS, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
-              alpha = 0.2) +
-  geom_ribbon(data = plot_NEE_forecast_OSBS, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
-              alpha = 0.2) +
-  geom_point(data = target_data_OSBS_sub, aes(x = time, y = nee), color = "black") +
-  scale_fill_manual(name = "Period", values = c("gray", plot_colors[3]), labels = c("Historical", "Forecast")) +
-  scale_color_manual(name = "Period", values = c("gray", plot_colors[3]), labels = c("Historical", "Forecast")) +
-  labs(title = paste("Site: OSBS | Time Period: ", substr(plot_chain_TempDLM_OSBS$time[1], 1, 10), "to", substr(plot_NEE_forecast_OSBS$time[length(plot_NEE_forecast_OSBS$time)], 1, 10)),
-       x = "Time (UTC)",
-       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
+# plot_NEE_forecast_BART <- NEE_forecast_BART %>%
+#   group_by(time) %>%
+#   summarise(mean = mean(nee),
+#             lower = quantile(nee, 0.025),
+#             upper = quantile(nee, 0.975),
+#             .groups = "drop")
+# 
+# plot_TempDLM_BART <- ggplot() +
+#   geom_line(data = plot_chain_TempDLM_BART, aes(x = time, y = mean, color = "1")) +
+#   geom_line(data = plot_NEE_forecast_BART, aes(x = time, y = mean, color = "2")) +
+#   geom_ribbon(data = plot_chain_TempDLM_BART, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
+#               alpha = 0.2) +
+#   geom_ribbon(data = plot_NEE_forecast_BART, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
+#               alpha = 0.2) +
+#   geom_point(data = target_data_BART_sub, aes(x = time, y = nee), color = "black") +
+#   scale_fill_manual(name = "Period", values = c("gray", plot_colors[1]), labels = c("Historical", "Forecast")) +
+#   scale_color_manual(name = "Period", values = c("gray", plot_colors[1]), labels = c("Historical", "Forecast")) +
+#   labs(title = paste("Site: BART | Time Period: ", substr(plot_chain_TempDLM_BART$time[1], 1, 10), "to", substr(plot_NEE_forecast_BART$time[length(plot_NEE_forecast_BART$time)], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+# 
+# # KONZ
+# 
+# plot_NEE_forecast_KONZ <- NEE_forecast_KONZ %>%
+#   group_by(time) %>%
+#   summarise(mean = mean(nee),
+#             lower = quantile(nee, 0.025),
+#             upper = quantile(nee, 0.975),
+#             .groups = "drop")
+# 
+# plot_TempDLM_KONZ <- ggplot() +
+#   geom_line(data = plot_chain_TempDLM_KONZ, aes(x = time, y = mean, color = "1")) +
+#   geom_line(data = plot_NEE_forecast_KONZ, aes(x = time, y = mean, color = "2")) +
+#   geom_ribbon(data = plot_chain_TempDLM_KONZ, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
+#               alpha = 0.2) +
+#   geom_ribbon(data = plot_NEE_forecast_KONZ, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
+#               alpha = 0.2) +
+#   geom_point(data = target_data_KONZ_sub, aes(x = time, y = nee), color = "black") +
+#   scale_fill_manual(name = "Period", values = c("gray", plot_colors[2]), labels = c("Historical", "Forecast")) +
+#   scale_color_manual(name = "Period", values = c("gray", plot_colors[2]), labels = c("Historical", "Forecast")) +
+#   labs(title = paste("Site: KONZ | Time Period: ", substr(plot_chain_TempDLM_KONZ$time[1], 1, 10), "to", substr(plot_NEE_forecast_KONZ$time[length(plot_NEE_forecast_KONZ$time)], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+# 
+# # OSBS
+# 
+# plot_NEE_forecast_OSBS <- NEE_forecast_OSBS %>%
+#   group_by(time) %>%
+#   summarise(mean = mean(nee),
+#             lower = quantile(nee, 0.025),
+#             upper = quantile(nee, 0.975),
+#             .groups = "drop")
+# 
+# plot_TempDLM_OSBS <- ggplot() +
+#   geom_line(data = plot_chain_TempDLM_OSBS, aes(x = time, y = mean, color = "1")) +
+#   geom_line(data = plot_NEE_forecast_OSBS, aes(x = time, y = mean, color = "2")) +
+#   geom_ribbon(data = plot_chain_TempDLM_OSBS, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
+#               alpha = 0.2) +
+#   geom_ribbon(data = plot_NEE_forecast_OSBS, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
+#               alpha = 0.2) +
+#   geom_point(data = target_data_OSBS_sub, aes(x = time, y = nee), color = "black") +
+#   scale_fill_manual(name = "Period", values = c("gray", plot_colors[3]), labels = c("Historical", "Forecast")) +
+#   scale_color_manual(name = "Period", values = c("gray", plot_colors[3]), labels = c("Historical", "Forecast")) +
+#   labs(title = paste("Site: OSBS | Time Period: ", substr(plot_chain_TempDLM_OSBS$time[1], 1, 10), "to", substr(plot_NEE_forecast_OSBS$time[length(plot_NEE_forecast_OSBS$time)], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
 
 # SRER
 
-plot_NEE_forecast_SRER <- NEE_forecast_SRER %>%
+# plot_NEE_forecast_SRER <- NEE_forecast_SRER %>%
+#   group_by(time) %>%
+#   summarise(mean = mean(nee),
+#             lower = quantile(nee, 0.025),
+#             upper = quantile(nee, 0.975),
+#             .groups = "drop")
+# 
+# plot_TempDLM_SRER <- ggplot() +
+#   geom_line(data = plot_chain_TempDLM_SRER, aes(x = time, y = mean, color = "1")) +
+#   geom_line(data = plot_NEE_forecast_SRER, aes(x = time, y = mean, color = "2")) +
+#   geom_ribbon(data = plot_chain_TempDLM_SRER, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
+#               alpha = 0.2) +
+#   geom_ribbon(data = plot_NEE_forecast_SRER, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
+#               alpha = 0.2) +
+#   geom_point(data = target_data_SRER_sub, aes(x = time, y = nee), color = "black") +
+#   scale_fill_manual(name = "Period", values = c("gray", plot_colors[4]), labels = c("Historical", "Forecast")) +
+#   scale_color_manual(name = "Period", values = c("gray", plot_colors[4]), labels = c("Historical", "Forecast")) +
+#   labs(title = paste("Site: SRER | Time Period: ", substr(plot_chain_TempDLM_SRER$time[1], 1, 10), "to", substr(plot_NEE_forecast_SRER$time[length(plot_NEE_forecast_SRER$time)], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+
+#
+PlotObsAndForecast <- function(siteID, nee_forecast, plot_chain_TempDLM, target_data_sub)
+{
+  #NEE_forecast_SRER = nee_forecast
+  #plot_chain_TempDLM_SRER = plot_chain_TempDLM
+  #plot_NEE_forecast_SRER = plot_NEE_forecast
+  #target_data_SRER_sub = target_data_sub
+  
+  title = paste("Site:", siteID, "| Time Period: ", substr(plot_chain_TempDLM$time[1], 1, 10), "to",
+                substr(plot_NEE_forecast$time[length(plot_NEE_forecast$time)], 1, 10))
+  
+  plot_NEE_forecast <- nee_forecast %>%
   group_by(time) %>%
   summarise(mean = mean(nee),
             lower = quantile(nee, 0.025),
             upper = quantile(nee, 0.975),
             .groups = "drop")
-
-plot_TempDLM_SRER <- ggplot() +
-  geom_line(data = plot_chain_TempDLM_SRER, aes(x = time, y = mean, color = "1")) +
-  geom_line(data = plot_NEE_forecast_SRER, aes(x = time, y = mean, color = "2")) +
-  geom_ribbon(data = plot_chain_TempDLM_SRER, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
-              alpha = 0.2) +
-  geom_ribbon(data = plot_NEE_forecast_SRER, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
-              alpha = 0.2) +
-  geom_point(data = target_data_SRER_sub, aes(x = time, y = nee), color = "black") +
-  scale_fill_manual(name = "Period", values = c("gray", plot_colors[4]), labels = c("Historical", "Forecast")) +
-  scale_color_manual(name = "Period", values = c("gray", plot_colors[4]), labels = c("Historical", "Forecast")) +
-  labs(title = paste("Site: SRER | Time Period: ", substr(plot_chain_TempDLM_SRER$time[1], 1, 10), "to", substr(plot_NEE_forecast_SRER$time[length(plot_NEE_forecast_SRER$time)], 1, 10)),
-       x = "Time (UTC)",
+  
+  plot = ggplot() +
+    geom_line(data = plot_chain_TempDLM, aes(x = time, y = mean, color = "1")) +
+    geom_line(data = plot_NEE_forecast, aes(x = time, y = mean, color = "2")) +
+    geom_ribbon(data = plot_chain_TempDLM,
+                aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"), alpha = 0.2) +
+    geom_ribbon(data = plot_NEE_forecast,
+                aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"), alpha = 0.2) +
+    geom_point(data = target_data_sub, aes(x = time, y = nee), color = "black") +
+    scale_fill_manual(name = "Period", values = c("gray", plot_colors[4]),
+                      labels = c("Historical", "Forecast")) +
+    scale_color_manual(name = "Period", values = c("gray", plot_colors[4]),
+                       labels = c("Historical", "Forecast")) +
+    labs(title = title, x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
+    theme_bw()
+  
+  print(plot)
+}
 
-plot_TempDLM_BART
-plot_TempDLM_KONZ
-plot_TempDLM_OSBS
-plot_TempDLM_SRER
+#plot_TempDLM_BART
+#plot_TempDLM_KONZ
+#plot_TempDLM_OSBS
+#plot_TempDLM_SRER
+
+PlotObsAndForecast(site = "BART", NEE_forecast_BART, plot_chain_TempDLM_BART, target_data_BART_sub)
+PlotObsAndForecast(site = "KONZ", NEE_forecast_KONZ, plot_chain_TempDLM_KONZ, target_data_KONZ_sub)
+PlotObsAndForecast(site = "OSBS", NEE_forecast_OSBS, plot_chain_TempDLM_OSBS, target_data_OSBS_sub)
+PlotObsAndForecast(site = "SRER", NEE_forecast_SRER, plot_chain_TempDLM_SRER, target_data_SRER_sub)
 ```
