@@ -20,6 +20,10 @@ library(neonUtilities)
 #Globals:
 NeonSiteIDs = c("BART", "KONZ", "OSBS", "SRER")
 
+#PDF plot dimensions (= Powerpoint traditional aspect ratio):
+PDFwidth = 10
+PDFheight = 7.5
+
 #Download the triple aspirated air temperature from NEON tower:
 GetNEON_TAAT_Data <- function(dateStart, dateEnd)
 {
@@ -122,4 +126,16 @@ PlotNEONdriverData <- function(dateStart = "2017-04", dateEnd = "2021-04",
     facet_grid(rows = vars(siteID)) +
     theme_bw()
   print(swPlot)
+}
+
+#The plots take a while to run so I'm going to save a PDF for team reference.
+PlotNEONdriverPDF <- function()
+{
+  fileName = "NEON_Driver_Data1.pdf"
+  pdf(file = fileName, width = PDFwidth, height = PDFheight)
+  
+  PlotNEONdriverData()
+  
+  dev.off()
+  print(paste("Plots saved as", file.path(getwd(), fileName)))
 }
