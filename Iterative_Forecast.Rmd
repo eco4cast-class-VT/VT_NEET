@@ -6,6 +6,7 @@ output: html_document
 ---
 
 ```{r Setup, include = FALSE}
+#rm(list=ls());#Clear memory.
 knitr::opts_chunk$set(echo = TRUE)
 
 # source("https://raw.githubusercontent.com/PecanProject/pecan/develop/modules/uncertainty/R/flux_uncertainty.R")  # Will attempt to use flux_uncertainty function from PEcAn project later
@@ -738,6 +739,59 @@ plot_TempDLM_BART
 plot_TempDLM_KONZ
 plot_TempDLM_OSBS
 plot_TempDLM_SRER
+
+#Reorganized code:
+#Untested because I can't connect to https://data.ecoforecast.org/ right now
+# plot_colors = c("BART" = "#F8766D", "KONZ" = "#7CAE00", "OSBS" = "#00BFC4", "SRER" = "#C77CFF")
+# 
+# #Perform statistical summaries on a chain:
+# GetChainStats <- function(chain_TempDLM)
+# {
+#   chainStatsSummary <- chain_TempDLM %>%
+#   group_by(day) %>%
+#   summarise(mean = mean(x),
+#             lower = quantile(x, 0.025),
+#             upper = quantile(x, 0.975),
+#             .groups = "drop") %>%
+#   mutate(time = target_data_SRER_sub$time)
+#   
+#   return(chainStatsSummary)
+# }
+# 
+# #PlotObsAndForecast <- function(siteID, nee_forecast, plot_chain_TempDLM, target_data_sub)
+# PlotTemperatureDLMvsObs <- function(siteID, plot_chain_TempDLM, target_data_sub)
+# {
+#   #plot_chain_TempDLM_SRER = plot_chain_TempDLM
+#   #target_data_SRER_sub -> target_data_sub
+#   
+#   plot = ggplot(plot_chain_TempDLM, aes(x = time, y = mean)) +
+#   geom_line() +
+#   geom_ribbon(aes(ymin = lower, ymax = upper),
+#               alpha = 0.2,
+#               color = plot_colors[siteID],
+#               fill = plot_colors[siteID]) +
+#   geom_point(data = target_data_sub, aes(x = time, y = nee), color = "black") +
+#   labs(title = paste("Site:", siteID, "| Time Period: ", substr(target_data_sub$time[1], 1, 10),
+#                      "to", substr(target_data_sub$time[subset_length_timesteps], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+#   
+#   print(plot)
+# }
+# 
+# plot_chain_TempDLM_SRER = GetChainStats(chain_TempDLM_BART)
+# PlotTemperatureDLMvsObs(site = "BART", plot_chain_TempDLM_BART, target_data_BART_sub)
+# 
+# plot_chain_TempDLM_SRER = GetChainStats(chain_TempDLM_BART)
+# PlotTemperatureDLMvsObs(site = "KONZ", plot_chain_TempDLM_KONZ, target_data_KONZ_sub)
+# 
+# plot_chain_TempDLM_SRER = GetChainStats(chain_TempDLM_BART)
+# PlotTemperatureDLMvsObs(site = "OSBS", plot_chain_TempDLM_OSBS, target_data_OSBS_sub)
+# 
+# plot_chain_TempDLM_SRER = GetChainStats(chain_TempDLM_SRER)
+# PlotTemperatureDLMvsObs(site = "SRER", plot_chain_TempDLM_SRER, target_data_SRER_sub)
+
 ```
 
 Generate forecasts.
