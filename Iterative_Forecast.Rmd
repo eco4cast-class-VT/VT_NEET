@@ -798,7 +798,8 @@ Plot temperature DLM versus observations.
 plot_colors = c("BART" = "#F8766D", "KONZ" = "#7CAE00", "OSBS" = "#00BFC4", "SRER" = "#C77CFF")
 
 #Perform statistical summaries on a chain:
-GetChainStats <- function(chain_TempDLM)
+#We do this outside PlotTemperatureDLMvsObs() because the result is used again below.
+GetChainStats <- function(target_data_sub, chain_TempDLM)
 {
   chainStatsSummary <- chain_TempDLM %>%
   group_by(day) %>%
@@ -806,12 +807,13 @@ GetChainStats <- function(chain_TempDLM)
             lower = quantile(x, 0.025),
             upper = quantile(x, 0.975),
             .groups = "drop") %>%
-  mutate(time = target_data_SRER_sub$time)
+  mutate(time = target_data_sub$time)
 
   return(chainStatsSummary)
 }
 
-#PlotObsAndForecast <- function(siteID, nee_forecast, plot_chain_TempDLM, target_data_sub)
+#The argument order would be better reversed.
+#See PlotObsAndForecast() below, which is similar.
 PlotTemperatureDLMvsObs <- function(siteID, plot_chain_TempDLM, target_data_sub)
 {
   #plot_chain_TempDLM_SRER = plot_chain_TempDLM
@@ -833,16 +835,16 @@ PlotTemperatureDLMvsObs <- function(siteID, plot_chain_TempDLM, target_data_sub)
   print(plot)
 }
 
-plot_chain_TempDLM_BART = GetChainStats(chain_TempDLM_BART)
+plot_chain_TempDLM_BART = GetChainStats(target_data_BART_sub, chain_TempDLM_BART)
 PlotTemperatureDLMvsObs(site = "BART", plot_chain_TempDLM_BART, target_data_BART_sub)
 
-plot_chain_TempDLM_KONZ = GetChainStats(chain_TempDLM_KONZ)
+plot_chain_TempDLM_KONZ = GetChainStats(target_data_KONZ_sub, chain_TempDLM_KONZ)
 PlotTemperatureDLMvsObs(site = "KONZ", plot_chain_TempDLM_KONZ, target_data_KONZ_sub)
 
-plot_chain_TempDLM_OSBS = GetChainStats(chain_TempDLM_OSBS)
+plot_chain_TempDLM_OSBS = GetChainStats(target_data_OSBS_sub, chain_TempDLM_OSBS)
 PlotTemperatureDLMvsObs(site = "OSBS", plot_chain_TempDLM_OSBS, target_data_OSBS_sub)
 
-plot_chain_TempDLM_SRER = GetChainStats(chain_TempDLM_SRER)
+plot_chain_TempDLM_SRER = GetChainStats(target_data_SRER_sub, chain_TempDLM_SRER)
 PlotTemperatureDLMvsObs(site = "SRER", plot_chain_TempDLM_SRER, target_data_SRER_sub)
 
 ```
