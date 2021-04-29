@@ -5,8 +5,9 @@ output: html_document
 
 ```{r setup, include = F}
 knitr::opts_chunk$set(echo = T)
+
 library(neonUtilities)
-library(ggplot2)
+library(tidyverse)
 ```
 
 ## Grab data from NEON
@@ -30,19 +31,12 @@ TRAAT_data <- loadByProduct(dpID = "DP1.00003.001",
 
 direct_diffuse_pyranometer_data <- loadByProduct(dpID = "DP1.00014.001",
                             site = c("BART", "KONZ", "OSBS", "SRER"),
-                            startdate = "2020-02",
+                            startdate = "2017-02",
                             enddate = "2021-04",
                             timeIndex = 30,
                             check.size = F)
 
-net_radiometer_data <- loadByProduct(dpID = "DP1.00023.001",
-                            site = c("BART", "KONZ", "OSBS", "SRER"),
-                            startdate = "2020-02",
-                            enddate = "2021-04",
-                            timeIndex = 30,
-                            check.size = F)
-
-# Potential other data products to use for incoming SW: (1) net radiometer (DP1.00023.001), (2) primary pyranometer (DP1.00022.001) [missing BART]
+# Potential other data products to use for incoming SW: (1) net radiometer (DP1.00023.001) [duplicated time points], (2) primary pyranometer (DP1.00022.001) [missing BART]
 ```
 
 ## Temp DF
@@ -52,8 +46,16 @@ That's around 90 MB of data, which I have saved locally, change setwd as needed 
 ```{r}
 # setwd("~/Virginia Tech/FREC 5984 EM&F/NEON")
 # temp <- read.csv("temp_dat.csv")[,c("siteID","startDateTime","tempRHMean")]
-temp <- TRAAT_data$TAAT_30min[,c("siteID","startDateTime","tempTripleMean")]
-total_incoming_SW <- direct_diffuse_pyranometer_data$SRDDP_30min[, c("siteID", "startDateTime", "gloRadMean")]
+temp <- TRAAT_data$TAAT_30min[, c("siteID","startDateTime","tempTripleMean")]
+inSW <- direct_diffuse_pyranometer_data$SRDDP_30min[, c("siteID", "startDateTime", "gloRadMean")]
+# incoming_SW$siteID <- as.factor(incoming_SW_pyranometer$siteID)
+# 
+# ## Pick up here
+# 
+# na_indices_BART <- which(is.na(filter(incoming_SW, siteID == "BART")$gloRadMean))
+
+# Temperature gap-filling
+
 temp$date_noyear <- substr(temp$startDateTime, 6, 19)
 temp$ID <- paste(temp$siteID, temp$date_noyear, sep = "_")
 
@@ -63,12 +65,36 @@ temp_agg$ID <- paste(temp_agg$siteID, temp_agg$date_noyear, sep = "_")
 temp$tempTripleMean[is.na(temp$tempTripleMean)] <- 1000
 temp$temp <- ifelse(temp$tempTripleMean == 1000, temp_agg$tempTripleMean[match(temp$ID, temp_agg$ID)], temp$tempTripleMean)
 
-temp <- temp[,c("siteID", "startDateTime", "temp")]
+temp <- temp[, c("siteID", "startDateTime", "temp")]
 
 ggplot(data = temp, aes(x = startDateTime, y = temp)) +
   geom_line() +
   labs(title = "Temperature", x = "Date", y = "Air Temp (ºC, 30 min. mean)") +
   facet_wrap(~siteID)
 
-write.csv(temp, file = "temp_gapfill.csv", row.names = F)
+# Incoming shortwave radiation gap-filling
+
+inSW$date_noyear <- substr(inSW$startDateTime, 6, 19)
+inSW$ID <- paste(inSW$siteID, inSW$date_noyear, sep = "_")
+
+inSW_agg <- aggregate(cbind(gloRadMean) ~ siteID + date_noyear, data = inSW, FUN = mean, na.rm = T)
+inSW_agg$ID <- paste(inSW_agg$siteID, inSW_agg$date_noyear, sep = "_")
+
+inSW$gloRadMean[is.na(inSW$gloRadMean)] <- 1000
+inSW$inSW <- ifelse(inSW$gloRadMean == 1000, inSW_agg$gloRadMean[match(inSW$ID, inSW_agg$ID)], inSW$gloRadMean)
+
+inSW <- inSW[, c("siteID", "startDateTime", "inSW")]
+
+ggplot(data = inSW, aes(x = startDateTime, y = inSW)) +
+  geom_line() +
+  labs(title = "Incoming SW Radition", x = "Date", y = "Incoming Total SW Radiation (W/m^2)") +
+  facet_wrap(~siteID)
+
+# Combine temperature and SW radiation data
+
+temp_inSW <- cbind(temp, inSW$inSW)
+
+colnames(temp_inSW)[4] <- "inSW"
+
+write.csv(temp_inSW, file = "temp_inSW_gapfill.csv", row.names = F)
 ```

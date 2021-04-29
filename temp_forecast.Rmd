@@ -17,21 +17,62 @@ download_noaa(siteID = c("BART", "KONZ", "OSBS", "SRER"),
               interval = "1hr",
               date = "2021-04-01",
               cycle = "00",
-              dir = "~/Virginia Tech/FREC 5984 EM&F/NEON/Initial Forecast/00")
+              dir = "Macintosh HD/users/tweiglein/VT_NEET")
+              # dir = "~/Virginia Tech/FREC 5984 EM&F/NEON/Initial Forecast/00")
 ```
 
 ```{r}
 #N.B. air_temperature data are in Kelvin
 
-tempfc <- stack_noaa(dir = "~/Virginia Tech/FREC 5984 EM&F/NEON/Initial Forecast/00")
-tempfc <- subset(tempfc, tempfc$runEndDate == "2021-05-06T00")
+# tempfc <- stack_noaa(dir = "~/Virginia Tech/FREC 5984 EM&F/NEON/Initial Forecast/00")
+tempfc <- stack_noaa(dir = "Macintosh HD/users/tweiglein/VT_NEET")
+tempfc <- subset(tempfc, tempfc$endDate == "2021-05-06T00")
 tempfc$tempC <- tempfc$air_temperature - 273.15
-temp_fc <- tempfc[,c("siteID", "ensemble", "time", "tempC")]
+
+colnames(tempfc)[16] <- "hour"
+
+tempfc$time <- rep(seq(ymd_hm("2021-04-01 0:00"), ymd_hm("2021-05-06 0:00"), by = "hour"), times = length(unique(tempfc$ensemble))*length(unique(tempfc$siteID)))
+
+temp_fc <- tempfc[,c("siteID", "ensemble", "time", "hour", "tempC", "surface_downwelling_shortwave_flux_in_air")]
+
+colnames(temp_fc)[6] <- "inSW"
 
 temp_fc_BART <- subset(temp_fc, temp_fc$siteID == "BART")
 temp_fc_KONZ <- subset(temp_fc, temp_fc$siteID == "KONZ")
 temp_fc_OSBS <- subset(temp_fc, temp_fc$siteID == "OSBS")
 temp_fc_SRER <- subset(temp_fc, temp_fc$siteID == "SRER")
+
+# Gap-fill NAs in forecasted inSW values at last forecast timepoint
+
+# Since NAs occur at midnight, will use value at midnight day before
+
+for(i in 1:length(temp_fc_BART$siteID)){
+  
+  if(is.na(temp_fc_BART$inSW[i])){
+    
+    temp_fc_BART$inSW[i] <- temp_fc_BART$inSW[i - 24]
+    
+  }
+  
+  if(is.na(temp_fc_KONZ$inSW[i])){
+    
+    temp_fc_KONZ$inSW[i] <- temp_fc_KONZ$inSW[i - 24]
+    
+  }
+  
+  if(is.na(temp_fc_OSBS$inSW[i])){
+    
+    temp_fc_OSBS$inSW[i] <- temp_fc_OSBS$inSW[i - 24]
+    
+  }
+ 
+  if(is.na(temp_fc_SRER$inSW[i])){
+    
+    temp_fc_SRER$inSW[i] <- temp_fc_SRER$inSW[i - 24]
+    
+  }
+   
+}
 
 write.csv(temp_fc, file = "temp_fc_april.csv", row.names=F)
 ```
@@ -70,8 +111,10 @@ dat_fun <- function(dat){
   dat3 <- tibble(as.character(rep(dat[1,1], 840)),
                  as.character(rep(dat[1,2], 840)),
                  seq(ymd_hm("2021-04-01 0:30"), ymd_hm("2021-05-05 23:30"), by = "hour"),
-                 colMeans(matrix(dat2$tempC, 2)))
-  names(dat3) <- c("siteID", "ensemble", "time", "tempC")
+                 seq(0.5, 839.5, by = 1),
+                 colMeans(matrix(dat2$tempC, 2)),
+                 colMeans(matrix(dat2$inSW, 2)))
+  names(dat3) <- c("siteID", "ensemble", "time", "hour", "tempC", "inSW")
   dat4 <- rbind(dat, dat3)
   dat4 <- arrange(dat4, time)
   return(dat4)
