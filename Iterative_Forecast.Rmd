@@ -1408,15 +1408,15 @@ PlotObsAndForecast <- function(siteID, nee_forecast, plot_chain_TempDLM, target_
   #plot_NEE_forecast_SRER = plot_NEE_forecast
   #target_data_SRER_sub = target_data_sub
   
-  title = paste("Site:", siteID, "| Time Period: ", substr(plot_chain_TempDLM$time[1], 1, 10), "to",
-                substr(plot_NEE_forecast$time[length(plot_NEE_forecast$time)], 1, 10))
-  
   plot_NEE_forecast <- nee_forecast %>%
   group_by(time) %>%
   summarise(mean = mean(nee),
             lower = quantile(nee, 0.025),
             upper = quantile(nee, 0.975),
             .groups = "drop")
+  
+  title = paste("Site:", siteID, "| Time Period: ", substr(plot_chain_TempDLM$time[1], 1, 10), "to",
+                substr(plot_NEE_forecast$time[length(plot_NEE_forecast$time)], 1, 10))
   
   plot = ggplot() +
     geom_line(data = plot_chain_TempDLM, aes(x = time, y = mean, color = "1")) +
@@ -1426,9 +1426,9 @@ PlotObsAndForecast <- function(siteID, nee_forecast, plot_chain_TempDLM, target_
     geom_ribbon(data = plot_NEE_forecast,
                 aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"), alpha = 0.2) +
     geom_point(data = target_data_sub, aes(x = time, y = nee), color = "black") +
-    scale_fill_manual(name = "Period", values = c("gray", plot_colors[4]),
+    scale_fill_manual(name = "Period", values = c("gray", plot_colors[siteID]),
                       labels = c("Historical", "Forecast")) +
-    scale_color_manual(name = "Period", values = c("gray", plot_colors[4]),
+    scale_color_manual(name = "Period", values = c("gray", plot_colors[siteID]),
                        labels = c("Historical", "Forecast")) +
     labs(title = title, x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
