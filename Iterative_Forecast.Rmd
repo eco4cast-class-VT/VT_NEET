@@ -610,8 +610,11 @@ PlotChain = function(siteID, nimbleOutput, burnin = 2000)
   # Exclude burn-in:
   nimbleMinusBurn <- window(nimbleOutput, start = burnin)
   #Visualize chains w/o burn-in
-  plot(nimbleMinusBurn[, c("b1")], main = "SRER: b1 (burn-in removed)")
-  plot(nimbleMinusBurn[, c("sd_add")], main = "SRER: sd_add (burn-in removed)")
+  #plot(nimbleMinusBurn[, c("b1")], main = "SRER: b1 (burn-in removed)")
+  #plot(nimbleMinusBurn[, c("sd_add")], main = "SRER: sd_add (burn-in removed)")
+  plot(nimbleMinusBurn[, c("b1")], main = paste(siteID, ": b1 (burn-in removed)", sep = ''))
+  plot(nimbleMinusBurn[, c("sd_add")],
+       main = paste(siteID, "SRER: sd_add (burn-in removed)", sep = ''))
   
   #Needed below:
   #This is temporary.  We probably want to eliminate this...
@@ -619,8 +622,10 @@ PlotChain = function(siteID, nimbleOutput, burnin = 2000)
 }
 
 nimble_burn_TempDLM_BART = PlotChain(siteID = "BART", nimble_out_TempDLM_BART)
-nimble_burn_TempDLM_KONZ = PlotChain(siteID = "OSBS", nimble_out_TempDLM_OSBS)
-nimble_burn_TempDLM_OSBS = PlotChain(siteID = "KONZ", nimble_out_TempDLM_KONZ)
+#nimble_burn_TempDLM_KONZ = PlotChain(siteID = "OSBS", nimble_out_TempDLM_OSBS)
+#nimble_burn_TempDLM_OSBS = PlotChain(siteID = "KONZ", nimble_out_TempDLM_KONZ)
+nimble_burn_TempDLM_KONZ = PlotChain(siteID = "KONZ", nimble_out_TempDLM_KONZ)
+nimble_burn_TempDLM_OSBS = PlotChain(siteID = "OSBS", nimble_out_TempDLM_OSBS)
 nimble_burn_TempDLM_SRER = PlotChain(siteID = "SRER", nimble_out_TempDLM_SRER)
 
 ```
