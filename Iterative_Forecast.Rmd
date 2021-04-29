@@ -6,6 +6,7 @@ output: html_document
 ---
 
 ```{r Setup, include = FALSE}
+#rm(list=ls());#Clear memory.
 knitr::opts_chunk$set(echo = TRUE)
 
 library(coda)
@@ -253,7 +254,7 @@ temp_data_KONZ_sub <- temp_data_KONZ[KONZ_temp_i,]
 
 # Specify sd_obs modifier (to account for lower NEE in winter)
 
-sd_obs_mod_KONZ <- 0.05
+sd_obs_mod_KONZ <- 0.15
 
 # Specify data
 
@@ -566,63 +567,76 @@ Visualize chains and remove burn-in for temperature DLM.
 ```{r Visualize chains and remove burn-in for temperature DLM}
 # BART
 
-plot(nimble_out_TempDLM_BART[, c("b1")], main = "BART: b1")  # Visualize all chains
-plot(nimble_out_TempDLM_BART[, c("b2")], main = "BART: b2")  # Visualize all chains
-plot(nimble_out_TempDLM_BART[, c("b3")], main = "BART: b3")  # Visualize all chains
-plot(nimble_out_TempDLM_BART[, c("b4")], main = "BART: b4")  # Visualize all chains
-plot(nimble_out_TempDLM_BART[, c("sd_add")], main = "BART: sd_add")  # Visualize all chains
-burnin_TempDLM_BART <- 2000  # Burn-in
-nimble_burn_TempDLM_BART <- window(nimble_out_TempDLM_BART, start = burnin_TempDLM_BART)  # Exclude burn-in
-plot(nimble_burn_TempDLM_BART[, c("b1")], main = "BART: b1 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_BART[, c("b2")], main = "BART: b2 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_BART[, c("b3")], main = "BART: b3 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_BART[, c("b4")], main = "BART: b4 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_BART[, c("sd_add")], main = "BART: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
+# plot(nimble_out_TempDLM_BART[, c("b1")], main = "BART: b1")  # Visualize all chains
+# plot(nimble_out_TempDLM_BART[, c("sd_add")], main = "BART: sd_add")  # Visualize all chains
+# burnin_TempDLM_BART <- 2000  # Burn-in
+# nimble_burn_TempDLM_BART <- window(nimble_out_TempDLM_BART, start = burnin_TempDLM_BART)  # Exclude burn-in
+# plot(nimble_burn_TempDLM_BART[, c("b1")], main = "BART: b1 (burn-in removed)")  # Visualize chains w/o burn-in
+# plot(nimble_burn_TempDLM_BART[, c("sd_add")], main = "BART: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
+# 
+# # KONZ
+# 
+# plot(nimble_out_TempDLM_KONZ[, c("b1")], main = "KONZ: b1")  # Visualize all chains
+# plot(nimble_out_TempDLM_KONZ[, c("sd_add")], main = "KONZ: sd_add")  # Visualize all chains
+# burnin_TempDLM_KONZ <- 2000  # Burn-in
+# nimble_burn_TempDLM_KONZ <- window(nimble_out_TempDLM_KONZ, start = burnin_TempDLM_KONZ)  # Exclude burn-in
+# plot(nimble_burn_TempDLM_KONZ[, c("b1")], main = "KONZ: b1 (burn-in removed)")  # Visualize chains w/o burn-in
+# plot(nimble_burn_TempDLM_KONZ[, c("sd_add")], main = "KONZ: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
+# 
+# # OSBS
+# 
+# plot(nimble_out_TempDLM_OSBS[, c("b1")], main = "OSBS: b1")  # Visualize all chains
+# plot(nimble_out_TempDLM_OSBS[, c("sd_add")], main = "OSBS: sd_add")  # Visualize all chains
+# burnin_TempDLM_OSBS <- 2000  # Burn-in
+# nimble_burn_TempDLM_OSBS <- window(nimble_out_TempDLM_OSBS, start = burnin_TempDLM_OSBS)  # Exclude burn-in
+# plot(nimble_burn_TempDLM_OSBS[, c("b1")], main = "OSBS: b1 (burn-in removed)")  # Visualize chains w/o burn-in
+# plot(nimble_burn_TempDLM_OSBS[, c("sd_add")], main = "OSBS: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
+# 
+# # SRER
+# 
+# plot(nimble_out_TempDLM_SRER[, c("b1")], main = "SRER: b1")  # Visualize all chains
+# plot(nimble_out_TempDLM_SRER[, c("sd_add")], main = "SRER: sd_add")  # Visualize all chains
+# burnin_TempDLM_SRER <- 2000  # Burn-in
+# nimble_burn_TempDLM_SRER <- window(nimble_out_TempDLM_SRER, start = burnin_TempDLM_SRER)  # Exclude burn-in
+# plot(nimble_burn_TempDLM_SRER[, c("b1")], main = "SRER: b1 (burn-in removed)")  # Visualize chains w/o burn-in
+# plot(nimble_burn_TempDLM_SRER[, c("sd_add")], main = "SRER: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
 
-# KONZ
 
-plot(nimble_out_TempDLM_KONZ[, c("b1")], main = "KONZ: b1")  # Visualize all chains
-plot(nimble_out_TempDLM_KONZ[, c("b2")], main = "KONZ: b2")  # Visualize all chains
-plot(nimble_out_TempDLM_KONZ[, c("b3")], main = "KONZ: b3")  # Visualize all chains
-plot(nimble_out_TempDLM_KONZ[, c("b4")], main = "KONZ: b4")  # Visualize all chains
-plot(nimble_out_TempDLM_KONZ[, c("sd_add")], main = "KONZ: sd_add")  # Visualize all chains
-burnin_TempDLM_KONZ <- 2000  # Burn-in
-nimble_burn_TempDLM_KONZ <- window(nimble_out_TempDLM_KONZ, start = burnin_TempDLM_KONZ)  # Exclude burn-in
-plot(nimble_burn_TempDLM_KONZ[, c("b1")], main = "KONZ: b1 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_KONZ[, c("b2")], main = "KONZ: b2 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_KONZ[, c("b3")], main = "KONZ: b3 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_KONZ[, c("b4")], main = "KONZ: b4 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_KONZ[, c("sd_add")], main = "KONZ: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
+#Plot the NIMBLE chains:
+PlotChain = function(siteID, nimbleOutput, burnin = 2000)
+{
+  #nimble_out_TempDLM_SRER = nimbleOutput
+  #nimble_burn_TempDLM_SRER = nimbleMinusBurn
+  
+  #Visualize all chains:
+  plot(nimbleOutput[, c("b1")], main = paste(siteID, ": b1", sep = ''))
+  plot(nimbleOutput[, c("b2")], main = paste(siteID, ": b2", sep = ''))
+  plot(nimbleOutput[, c("b3")], main = paste(siteID, ": b3", sep = ''))
+  plot(nimbleOutput[, c("b4")], main = paste(siteID, ": b4", sep = ''))
+  plot(nimbleOutput[, c("sd_add")], main = paste(siteID, ": sd_add", sep = ''))
+  
+  # Exclude burn-in:
+  nimbleMinusBurn <- window(nimbleOutput, start = burnin)
+  
+  #Visualize chains w/o burn-in
+  #plot(nimbleMinusBurn[, c("b1")], main = "SRER: b1 (burn-in removed)")
+  #plot(nimbleMinusBurn[, c("sd_add")], main = "SRER: sd_add (burn-in removed)")
+  plot(nimbleMinusBurn[, c("b1")], main = paste(siteID, ": b1 (burn-in removed)", sep = ''))
+  plot(nimbleMinusBurn[, c("b2")], main = paste(siteID, ": b2 (burn-in removed)", sep = ''))
+  plot(nimbleMinusBurn[, c("b3")], main = paste(siteID, ": b3 (burn-in removed)", sep = ''))
+  plot(nimbleMinusBurn[, c("b4")], main = paste(siteID, ": b4 (burn-in removed)", sep = ''))
+  plot(nimbleMinusBurn[, c("sd_add")],
+       main = paste(siteID, "SRER: sd_add (burn-in removed)", sep = ''))
+  
+  #Needed below:
+  #This is temporary.  We probably want to eliminate this...
+  return(nimbleMinusBurn)
+}
 
-# OSBS
-
-plot(nimble_out_TempDLM_OSBS[, c("b1")], main = "OSBS: b1")  # Visualize all chains
-plot(nimble_out_TempDLM_OSBS[, c("b2")], main = "OSBS: b2")  # Visualize all chains
-plot(nimble_out_TempDLM_OSBS[, c("b3")], main = "OSBS: b3")  # Visualize all chains
-plot(nimble_out_TempDLM_OSBS[, c("b4")], main = "OSBS: b4")  # Visualize all chains
-plot(nimble_out_TempDLM_OSBS[, c("sd_add")], main = "OSBS: sd_add")  # Visualize all chains
-burnin_TempDLM_OSBS <- 2000  # Burn-in
-nimble_burn_TempDLM_OSBS <- window(nimble_out_TempDLM_OSBS, start = burnin_TempDLM_OSBS)  # Exclude burn-in
-plot(nimble_burn_TempDLM_OSBS[, c("b1")], main = "OSBS: b1 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_OSBS[, c("b2")], main = "OSBS: b2 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_OSBS[, c("b3")], main = "OSBS: b3 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_OSBS[, c("b4")], main = "OSBS: b4 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_OSBS[, c("sd_add")], main = "OSBS: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
-
-# SRER
-
-plot(nimble_out_TempDLM_SRER[, c("b1")], main = "SRER: b1")  # Visualize all chains
-plot(nimble_out_TempDLM_SRER[, c("b2")], main = "SRER: b2")  # Visualize all chains
-plot(nimble_out_TempDLM_SRER[, c("b3")], main = "SRER: b3")  # Visualize all chains
-plot(nimble_out_TempDLM_SRER[, c("b4")], main = "SRER: b4")  # Visualize all chains
-plot(nimble_out_TempDLM_SRER[, c("sd_add")], main = "SRER: sd_add")  # Visualize all chains
-burnin_TempDLM_SRER <- 2000  # Burn-in
-nimble_burn_TempDLM_SRER <- window(nimble_out_TempDLM_SRER, start = burnin_TempDLM_SRER)  # Exclude burn-in
-plot(nimble_burn_TempDLM_SRER[, c("b1")], main = "SRER: b1 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_SRER[, c("b2")], main = "SRER: b2 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_SRER[, c("b3")], main = "SRER: b3 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_SRER[, c("b4")], main = "SRER: b4 (burn-in removed)")  # Visualize chains w/o burn-in
-plot(nimble_burn_TempDLM_SRER[, c("sd_add")], main = "SRER: sd_add (burn-in removed)")  # Visualize chains w/o burn-in
+nimble_burn_TempDLM_BART = PlotChain(siteID = "BART", nimble_out_TempDLM_BART)
+nimble_burn_TempDLM_KONZ = PlotChain(siteID = "KONZ", nimble_out_TempDLM_KONZ)
+nimble_burn_TempDLM_OSBS = PlotChain(siteID = "OSBS", nimble_out_TempDLM_OSBS)
+nimble_burn_TempDLM_SRER = PlotChain(siteID = "SRER", nimble_out_TempDLM_SRER)
 ```
 
 Examine Brooks-Gelman-Rubin convergence diagnostic for temperature DLM.
@@ -702,100 +716,155 @@ chain_TempDLM_SRER <- nimble_burn_TempDLM_SRER %>%
 Plot temperature DLM versus observations.
 
 ```{r Plot temperature DLM versus observations, warning = FALSE}
-plot_colors <- c("#F8766D", "#7CAE00", "#00BFC4", "#C77CFF")
+# plot_colors <- c("#F8766D", "#7CAE00", "#00BFC4", "#C77CFF")
+# 
+# # BART
+# 
+# plot_chain_TempDLM_BART <- chain_TempDLM_BART %>%
+#   group_by(day) %>%
+#   summarise(mean = mean(x),
+#             lower = quantile(x, 0.025),
+#             upper = quantile(x, 0.975),
+#             .groups = "drop") %>%
+#   mutate(time = target_data_BART_sub$time)
+# 
+# plot_TempDLM_BART <- ggplot(data = plot_chain_TempDLM_BART, aes(x = time, y = mean)) +
+#   geom_line() +
+#   geom_ribbon(aes(ymin = lower, ymax = upper),
+#               alpha = 0.2,
+#               color = plot_colors[1],
+#               fill = plot_colors[1]) +
+#   geom_point(data = target_data_BART_sub, aes(x = time, y = nee), color = "black") +
+#   labs(title = paste0("Site: BART | Time Period: ", substr(target_data_BART_sub$time[1], 1, 10), " to ", substr(target_data_BART_sub$time[subset_length_timesteps], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+# 
+# # KONZ
+# 
+# plot_chain_TempDLM_KONZ <- chain_TempDLM_KONZ %>%
+#   group_by(day) %>%
+#   summarise(mean = mean(x),
+#             lower = quantile(x, 0.025),
+#             upper = quantile(x, 0.975),
+#             .groups = "drop") %>%
+#   mutate(time = target_data_KONZ_sub$time)
+# 
+# plot_TempDLM_KONZ <- ggplot(data = plot_chain_TempDLM_KONZ, aes(x = time, y = mean)) +
+#   geom_line() +
+#   geom_ribbon(aes(ymin = lower, ymax = upper),
+#               alpha = 0.2,
+#               color = plot_colors[2],
+#               fill = plot_colors[2]) +
+#   geom_point(data = target_data_KONZ_sub, aes(x = time, y = nee), color = "black") +
+#   labs(title = paste0("Site: KONZ | Time Period: ", substr(target_data_KONZ_sub$time[1], 1, 10), " to ", substr(target_data_KONZ_sub$time[subset_length_timesteps], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+# 
+# # OSBS
+# 
+# plot_chain_TempDLM_OSBS <- chain_TempDLM_OSBS %>%
+#   group_by(day) %>%
+#   summarise(mean = mean(x),
+#             lower = quantile(x, 0.025),
+#             upper = quantile(x, 0.975),
+#             .groups = "drop") %>%
+#   mutate(time = target_data_OSBS_sub$time)
+# 
+# plot_TempDLM_OSBS <- ggplot(data = plot_chain_TempDLM_OSBS, aes(x = time, y = mean)) +
+#   geom_line() +
+#   geom_ribbon(aes(ymin = lower, ymax = upper),
+#               alpha = 0.2,
+#               color = plot_colors[3],
+#               fill = plot_colors[3]) +
+#   geom_point(data = target_data_OSBS_sub, aes(x = time, y = nee), color = "black") +
+#   labs(title = paste0("Site: OSBS | Time Period: ", substr(target_data_OSBS_sub$time[1], 1, 10), " to ", substr(target_data_OSBS_sub$time[subset_length_timesteps], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+# 
+# # SRER
+# 
+# plot_chain_TempDLM_SRER <- chain_TempDLM_SRER %>%
+#   group_by(day) %>%
+#   summarise(mean = mean(x),
+#             lower = quantile(x, 0.025),
+#             upper = quantile(x, 0.975),
+#             .groups = "drop") %>%
+#   mutate(time = target_data_SRER_sub$time)
+# 
+# plot_TempDLM_SRER <- ggplot(data = plot_chain_TempDLM_SRER, aes(x = time, y = mean)) +
+#   geom_line() +
+#   geom_ribbon(aes(ymin = lower, ymax = upper),
+#               alpha = 0.2,
+#               color = plot_colors[4],
+#               fill = plot_colors[4]) +
+#   geom_point(data = target_data_SRER_sub, aes(x = time, y = nee), color = "black") +
+#   labs(title = paste0("Site: SRER | Time Period: ", substr(target_data_SRER_sub$time[1], 1, 10), " to ", substr(target_data_SRER_sub$time[subset_length_timesteps], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+# 
+# plot_TempDLM_BART
+# plot_TempDLM_KONZ
+# plot_TempDLM_OSBS
+# plot_TempDLM_SRER
 
-# BART
+#Reorganized code:
+#Untested because I can't connect to https://data.ecoforecast.org/ right now
+plot_colors = c("BART" = "#F8766D", "KONZ" = "#7CAE00", "OSBS" = "#00BFC4", "SRER" = "#C77CFF")
 
-plot_chain_TempDLM_BART <- chain_TempDLM_BART %>%
+#Perform statistical summaries on a chain:
+#We do this outside PlotTemperatureDLMvsObs() because the result is used again below.
+GetChainStats <- function(target_data_sub, chain_TempDLM)
+{
+  chainStatsSummary <- chain_TempDLM %>%
   group_by(day) %>%
   summarise(mean = mean(x),
             lower = quantile(x, 0.025),
             upper = quantile(x, 0.975),
             .groups = "drop") %>%
-  mutate(time = target_data_BART_sub$time)
+  mutate(time = target_data_sub$time)
 
-plot_TempDLM_BART <- ggplot(data = plot_chain_TempDLM_BART, aes(x = time, y = mean)) +
+  return(chainStatsSummary)
+}
+
+#The argument order would be better reversed.
+#See PlotObsAndForecast() below, which is similar.
+PlotTemperatureDLMvsObs <- function(siteID, plot_chain_TempDLM, target_data_sub)
+{
+  #plot_chain_TempDLM_SRER = plot_chain_TempDLM
+  #target_data_SRER_sub -> target_data_sub
+
+  plot = ggplot(plot_chain_TempDLM, aes(x = time, y = mean)) +
   geom_line() +
   geom_ribbon(aes(ymin = lower, ymax = upper),
               alpha = 0.2,
-              color = plot_colors[1],
-              fill = plot_colors[1]) +
-  geom_point(data = target_data_BART_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste0("Site: BART | Time Period: ", substr(target_data_BART_sub$time[1], 1, 10), " to ", substr(target_data_BART_sub$time[subset_length_timesteps], 1, 10)),
+              color = plot_colors[siteID],
+              fill = plot_colors[siteID]) +
+  geom_point(data = target_data_sub, aes(x = time, y = nee), color = "black") +
+  labs(title = paste("Site:", siteID, "| Time Period: ", substr(target_data_sub$time[1], 1, 10),
+                     "to", substr(target_data_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
 
-# KONZ
+  print(plot)
+}
 
-plot_chain_TempDLM_KONZ <- chain_TempDLM_KONZ %>%
-  group_by(day) %>%
-  summarise(mean = mean(x),
-            lower = quantile(x, 0.025),
-            upper = quantile(x, 0.975),
-            .groups = "drop") %>%
-  mutate(time = target_data_KONZ_sub$time)
+plot_chain_TempDLM_BART = GetChainStats(target_data_BART_sub, chain_TempDLM_BART)
+PlotTemperatureDLMvsObs(site = "BART", plot_chain_TempDLM_BART, target_data_BART_sub)
 
-plot_TempDLM_KONZ <- ggplot(data = plot_chain_TempDLM_KONZ, aes(x = time, y = mean)) +
-  geom_line() +
-  geom_ribbon(aes(ymin = lower, ymax = upper),
-              alpha = 0.2,
-              color = plot_colors[2],
-              fill = plot_colors[2]) +
-  geom_point(data = target_data_KONZ_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste0("Site: KONZ | Time Period: ", substr(target_data_KONZ_sub$time[1], 1, 10), " to ", substr(target_data_KONZ_sub$time[subset_length_timesteps], 1, 10)),
-       x = "Time (UTC)",
-       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
+plot_chain_TempDLM_KONZ = GetChainStats(target_data_KONZ_sub, chain_TempDLM_KONZ)
+PlotTemperatureDLMvsObs(site = "KONZ", plot_chain_TempDLM_KONZ, target_data_KONZ_sub)
 
-# OSBS
+plot_chain_TempDLM_OSBS = GetChainStats(target_data_OSBS_sub, chain_TempDLM_OSBS)
+PlotTemperatureDLMvsObs(site = "OSBS", plot_chain_TempDLM_OSBS, target_data_OSBS_sub)
 
-plot_chain_TempDLM_OSBS <- chain_TempDLM_OSBS %>%
-  group_by(day) %>%
-  summarise(mean = mean(x),
-            lower = quantile(x, 0.025),
-            upper = quantile(x, 0.975),
-            .groups = "drop") %>%
-  mutate(time = target_data_OSBS_sub$time)
+plot_chain_TempDLM_SRER = GetChainStats(target_data_SRER_sub, chain_TempDLM_SRER)
+PlotTemperatureDLMvsObs(site = "SRER", plot_chain_TempDLM_SRER, target_data_SRER_sub)
 
-plot_TempDLM_OSBS <- ggplot(data = plot_chain_TempDLM_OSBS, aes(x = time, y = mean)) +
-  geom_line() +
-  geom_ribbon(aes(ymin = lower, ymax = upper),
-              alpha = 0.2,
-              color = plot_colors[3],
-              fill = plot_colors[3]) +
-  geom_point(data = target_data_OSBS_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste0("Site: OSBS | Time Period: ", substr(target_data_OSBS_sub$time[1], 1, 10), " to ", substr(target_data_OSBS_sub$time[subset_length_timesteps], 1, 10)),
-       x = "Time (UTC)",
-       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
-
-# SRER
-
-plot_chain_TempDLM_SRER <- chain_TempDLM_SRER %>%
-  group_by(day) %>%
-  summarise(mean = mean(x),
-            lower = quantile(x, 0.025),
-            upper = quantile(x, 0.975),
-            .groups = "drop") %>%
-  mutate(time = target_data_SRER_sub$time)
-
-plot_TempDLM_SRER <- ggplot(data = plot_chain_TempDLM_SRER, aes(x = time, y = mean)) +
-  geom_line() +
-  geom_ribbon(aes(ymin = lower, ymax = upper),
-              alpha = 0.2,
-              color = plot_colors[4],
-              fill = plot_colors[4]) +
-  geom_point(data = target_data_SRER_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste0("Site: SRER | Time Period: ", substr(target_data_SRER_sub$time[1], 1, 10), " to ", substr(target_data_SRER_sub$time[subset_length_timesteps], 1, 10)),
-       x = "Time (UTC)",
-       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
-
-plot_TempDLM_BART
-plot_TempDLM_KONZ
-plot_TempDLM_OSBS
-plot_TempDLM_SRER
 ```
 
 Generate forecasts.
@@ -1261,104 +1330,146 @@ Plot forecasts (with fitted model and observations).
 ```{r Plot forecasts, warning = FALSE}
 # BART
 
-plot_NEE_forecast_BART <- NEE_forecast_BART %>%
+# plot_NEE_forecast_BART <- NEE_forecast_BART %>%
+#   group_by(time) %>%
+#   summarise(mean = mean(nee),
+#             lower = quantile(nee, 0.025),
+#             upper = quantile(nee, 0.975),
+#             .groups = "drop")
+# 
+# plot_TempDLM_BART <- ggplot() +
+#   geom_line(data = plot_chain_TempDLM_BART, aes(x = time, y = mean), color = "black") +
+#   geom_line(data = plot_NEE_forecast_BART, aes(x = time, y = mean), color = "black") +
+#   geom_ribbon(data = plot_chain_TempDLM_BART, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
+#               alpha = 0.2) +
+#   geom_ribbon(data = plot_NEE_forecast_BART, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
+#               alpha = 0.2) +
+#   geom_point(data = target_data_BART_sub, aes(x = time, y = nee), color = "black") +
+#   scale_fill_manual(name = "Period", values = c("gray", plot_colors[1]), labels = c("Historical", "Forecast")) +
+#   scale_color_manual(name = "Period", values = c("gray", plot_colors[1]), labels = c("Historical", "Forecast")) +
+#   labs(title = paste0("Site: BART | Time Period: ", substr(plot_chain_TempDLM_BART$time[1], 1, 10), " to ", substr(plot_NEE_forecast_BART$time[length(plot_NEE_forecast_BART$time)], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+# 
+# # KONZ
+# 
+# plot_NEE_forecast_KONZ <- NEE_forecast_KONZ %>%
+#   group_by(time) %>%
+#   summarise(mean = mean(nee),
+#             lower = quantile(nee, 0.025),
+#             upper = quantile(nee, 0.975),
+#             .groups = "drop")
+# 
+# plot_TempDLM_KONZ <- ggplot() +
+#   geom_line(data = plot_chain_TempDLM_KONZ, aes(x = time, y = mean), color = "black") +
+#   geom_line(data = plot_NEE_forecast_KONZ, aes(x = time, y = mean), color = "black") +
+#   geom_ribbon(data = plot_chain_TempDLM_KONZ, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
+#               alpha = 0.2) +
+#   geom_ribbon(data = plot_NEE_forecast_KONZ, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
+#               alpha = 0.2) +
+#   geom_point(data = target_data_KONZ_sub, aes(x = time, y = nee), color = "black") +
+#   scale_fill_manual(name = "Period", values = c("gray", plot_colors[2]), labels = c("Historical", "Forecast")) +
+#   scale_color_manual(name = "Period", values = c("gray", plot_colors[2]), labels = c("Historical", "Forecast")) +
+#   labs(title = paste0("Site: KONZ | Time Period: ", substr(plot_chain_TempDLM_KONZ$time[1], 1, 10), " to ", substr(plot_NEE_forecast_KONZ$time[length(plot_NEE_forecast_KONZ$time)], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+# 
+# # OSBS
+# 
+# plot_NEE_forecast_OSBS <- NEE_forecast_OSBS %>%
+#   group_by(time) %>%
+#   summarise(mean = mean(nee),
+#             lower = quantile(nee, 0.025),
+#             upper = quantile(nee, 0.975),
+#             .groups = "drop")
+# 
+# plot_TempDLM_OSBS <- ggplot() +
+#   geom_line(data = plot_chain_TempDLM_OSBS, aes(x = time, y = mean), color = "black") +
+#   geom_line(data = plot_NEE_forecast_OSBS, aes(x = time, y = mean), color = "black") +
+#   geom_ribbon(data = plot_chain_TempDLM_OSBS, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
+#               alpha = 0.2) +
+#   geom_ribbon(data = plot_NEE_forecast_OSBS, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
+#               alpha = 0.2) +
+#   geom_point(data = target_data_OSBS_sub, aes(x = time, y = nee), color = "black") +
+#   scale_fill_manual(name = "Period", values = c("gray", plot_colors[3]), labels = c("Historical", "Forecast")) +
+#   scale_color_manual(name = "Period", values = c("gray", plot_colors[3]), labels = c("Historical", "Forecast")) +
+#   labs(title = paste0("Site: OSBS | Time Period: ", substr(plot_chain_TempDLM_OSBS$time[1], 1, 10), " to ", substr(plot_NEE_forecast_OSBS$time[length(plot_NEE_forecast_OSBS$time)], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+# 
+# # SRER
+# 
+# plot_NEE_forecast_SRER <- NEE_forecast_SRER %>%
+#   group_by(time) %>%
+#   summarise(mean = mean(nee),
+#             lower = quantile(nee, 0.025),
+#             upper = quantile(nee, 0.975),
+#             .groups = "drop")
+# 
+# plot_TempDLM_SRER <- ggplot() +
+#   geom_line(data = plot_chain_TempDLM_SRER, aes(x = time, y = mean), color = "black") +
+#   geom_line(data = plot_NEE_forecast_SRER, aes(x = time, y = mean), color = "black") +
+#   geom_ribbon(data = plot_chain_TempDLM_SRER, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
+#               alpha = 0.2) +
+#   geom_ribbon(data = plot_NEE_forecast_SRER, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
+#               alpha = 0.2) +
+#   geom_point(data = target_data_SRER_sub, aes(x = time, y = nee), color = "black") +
+#   scale_fill_manual(name = "Period", values = c("gray", plot_colors[4]), labels = c("Historical", "Forecast")) +
+#   scale_color_manual(name = "Period", values = c("gray", plot_colors[4]), labels = c("Historical", "Forecast")) +
+#   labs(title = paste0("Site: SRER | Time Period: ", substr(plot_chain_TempDLM_SRER$time[1], 1, 10), " to ", substr(plot_NEE_forecast_SRER$time[length(plot_NEE_forecast_SRER$time)], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+
+#Plot observations and forecast for a given location:
+PlotObsAndForecast <- function(siteID, nee_forecast, plot_chain_TempDLM, target_data_sub)
+{
+  #NEE_forecast_SRER = nee_forecast
+  #plot_chain_TempDLM_SRER = plot_chain_TempDLM
+  #plot_NEE_forecast_SRER = plot_NEE_forecast
+  #target_data_SRER_sub = target_data_sub
+  
+  plot_NEE_forecast <- nee_forecast %>%
   group_by(time) %>%
   summarise(mean = mean(nee),
             lower = quantile(nee, 0.025),
             upper = quantile(nee, 0.975),
             .groups = "drop")
-
-plot_TempDLM_BART <- ggplot() +
-  geom_line(data = plot_chain_TempDLM_BART, aes(x = time, y = mean), color = "black") +
-  geom_line(data = plot_NEE_forecast_BART, aes(x = time, y = mean), color = "black") +
-  geom_ribbon(data = plot_chain_TempDLM_BART, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
-              alpha = 0.2) +
-  geom_ribbon(data = plot_NEE_forecast_BART, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
-              alpha = 0.2) +
-  geom_point(data = target_data_BART_sub, aes(x = time, y = nee), color = "black") +
-  scale_fill_manual(name = "Period", values = c("gray", plot_colors[1]), labels = c("Historical", "Forecast")) +
-  scale_color_manual(name = "Period", values = c("gray", plot_colors[1]), labels = c("Historical", "Forecast")) +
-  labs(title = paste0("Site: BART | Time Period: ", substr(plot_chain_TempDLM_BART$time[1], 1, 10), " to ", substr(plot_NEE_forecast_BART$time[length(plot_NEE_forecast_BART$time)], 1, 10)),
-       x = "Time (UTC)",
+  
+  title = paste0("Site: ", siteID, " | Time Period: ", substr(plot_chain_TempDLM$time[1], 1, 10), " to ",
+                substr(plot_NEE_forecast$time[length(plot_NEE_forecast$time)], 1, 10))
+  
+  plot = ggplot() +
+    geom_line(data = plot_chain_TempDLM, aes(x = time, y = mean), color = "black") +
+    geom_line(data = plot_NEE_forecast, aes(x = time, y = mean), color = "black") +
+    geom_ribbon(data = plot_chain_TempDLM,
+                aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"), alpha = 0.2) +
+    geom_ribbon(data = plot_NEE_forecast,
+                aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"), alpha = 0.2) +
+    geom_point(data = target_data_sub, aes(x = time, y = nee), color = "black") +
+    scale_fill_manual(name = "Period", values = c("gray", plot_colors[siteID]),
+                      labels = c("Historical", "Forecast")) +
+    scale_color_manual(name = "Period", values = c("gray", plot_colors[siteID]),
+                       labels = c("Historical", "Forecast")) +
+    labs(title = title, x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
+    theme_bw()
+  
+  print(plot)
+}
 
-# KONZ
+#plot_TempDLM_BART
+#plot_TempDLM_KONZ
+#plot_TempDLM_OSBS
+#plot_TempDLM_SRER
 
-plot_NEE_forecast_KONZ <- NEE_forecast_KONZ %>%
-  group_by(time) %>%
-  summarise(mean = mean(nee),
-            lower = quantile(nee, 0.025),
-            upper = quantile(nee, 0.975),
-            .groups = "drop")
-
-plot_TempDLM_KONZ <- ggplot() +
-  geom_line(data = plot_chain_TempDLM_KONZ, aes(x = time, y = mean), color = "black") +
-  geom_line(data = plot_NEE_forecast_KONZ, aes(x = time, y = mean), color = "black") +
-  geom_ribbon(data = plot_chain_TempDLM_KONZ, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
-              alpha = 0.2) +
-  geom_ribbon(data = plot_NEE_forecast_KONZ, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
-              alpha = 0.2) +
-  geom_point(data = target_data_KONZ_sub, aes(x = time, y = nee), color = "black") +
-  scale_fill_manual(name = "Period", values = c("gray", plot_colors[2]), labels = c("Historical", "Forecast")) +
-  scale_color_manual(name = "Period", values = c("gray", plot_colors[2]), labels = c("Historical", "Forecast")) +
-  labs(title = paste0("Site: KONZ | Time Period: ", substr(plot_chain_TempDLM_KONZ$time[1], 1, 10), " to ", substr(plot_NEE_forecast_KONZ$time[length(plot_NEE_forecast_KONZ$time)], 1, 10)),
-       x = "Time (UTC)",
-       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
-
-# OSBS
-
-plot_NEE_forecast_OSBS <- NEE_forecast_OSBS %>%
-  group_by(time) %>%
-  summarise(mean = mean(nee),
-            lower = quantile(nee, 0.025),
-            upper = quantile(nee, 0.975),
-            .groups = "drop")
-
-plot_TempDLM_OSBS <- ggplot() +
-  geom_line(data = plot_chain_TempDLM_OSBS, aes(x = time, y = mean), color = "black") +
-  geom_line(data = plot_NEE_forecast_OSBS, aes(x = time, y = mean), color = "black") +
-  geom_ribbon(data = plot_chain_TempDLM_OSBS, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
-              alpha = 0.2) +
-  geom_ribbon(data = plot_NEE_forecast_OSBS, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
-              alpha = 0.2) +
-  geom_point(data = target_data_OSBS_sub, aes(x = time, y = nee), color = "black") +
-  scale_fill_manual(name = "Period", values = c("gray", plot_colors[3]), labels = c("Historical", "Forecast")) +
-  scale_color_manual(name = "Period", values = c("gray", plot_colors[3]), labels = c("Historical", "Forecast")) +
-  labs(title = paste0("Site: OSBS | Time Period: ", substr(plot_chain_TempDLM_OSBS$time[1], 1, 10), " to ", substr(plot_NEE_forecast_OSBS$time[length(plot_NEE_forecast_OSBS$time)], 1, 10)),
-       x = "Time (UTC)",
-       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
-
-# SRER
-
-plot_NEE_forecast_SRER <- NEE_forecast_SRER %>%
-  group_by(time) %>%
-  summarise(mean = mean(nee),
-            lower = quantile(nee, 0.025),
-            upper = quantile(nee, 0.975),
-            .groups = "drop")
-
-plot_TempDLM_SRER <- ggplot() +
-  geom_line(data = plot_chain_TempDLM_SRER, aes(x = time, y = mean), color = "black") +
-  geom_line(data = plot_NEE_forecast_SRER, aes(x = time, y = mean), color = "black") +
-  geom_ribbon(data = plot_chain_TempDLM_SRER, aes(x = time, ymin = lower, ymax = upper, color = "1", fill = "1"),
-              alpha = 0.2) +
-  geom_ribbon(data = plot_NEE_forecast_SRER, aes(x = time, ymin = lower, ymax = upper, color = "2", fill = "2"),
-              alpha = 0.2) +
-  geom_point(data = target_data_SRER_sub, aes(x = time, y = nee), color = "black") +
-  scale_fill_manual(name = "Period", values = c("gray", plot_colors[4]), labels = c("Historical", "Forecast")) +
-  scale_color_manual(name = "Period", values = c("gray", plot_colors[4]), labels = c("Historical", "Forecast")) +
-  labs(title = paste0("Site: SRER | Time Period: ", substr(plot_chain_TempDLM_SRER$time[1], 1, 10), " to ", substr(plot_NEE_forecast_SRER$time[length(plot_NEE_forecast_SRER$time)], 1, 10)),
-       x = "Time (UTC)",
-       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
-
-plot_TempDLM_BART
-plot_TempDLM_KONZ
-plot_TempDLM_OSBS
-plot_TempDLM_SRER
+PlotObsAndForecast(site = "BART", NEE_forecast_BART, plot_chain_TempDLM_BART, target_data_BART_sub)
+PlotObsAndForecast(site = "KONZ", NEE_forecast_KONZ, plot_chain_TempDLM_KONZ, target_data_KONZ_sub)
+PlotObsAndForecast(site = "OSBS", NEE_forecast_OSBS, plot_chain_TempDLM_OSBS, target_data_OSBS_sub)
+PlotObsAndForecast(site = "SRER", NEE_forecast_SRER, plot_chain_TempDLM_SRER, target_data_SRER_sub)
 ```
 ```{r, echo = FALSE}
 # (plot_TempDLM_BART + plot_TempDLM_KONZ) / (plot_TempDLM_OSBS + plot_TempDLM_SRER)
