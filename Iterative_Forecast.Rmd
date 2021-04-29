@@ -9,11 +9,10 @@ output: html_document
 #rm(list=ls());#Clear memory.
 knitr::opts_chunk$set(echo = TRUE)
 
-# source("https://raw.githubusercontent.com/PecanProject/pecan/develop/modules/uncertainty/R/flux_uncertainty.R")  # Will attempt to use flux_uncertainty function from PEcAn project later
-
 library(coda)
 library(lubridate)
 library(nimble)
+library(patchwork)
 library(RCurl)
 library(tidybayes)
 library(tidyverse)
@@ -28,19 +27,19 @@ target_data <- readr::read_csv("https://data.ecoforecast.org/targets/terrestrial
 
 # Read in gap-filled temperature data
 
-temp_data <- read.csv(text = getURL("https://raw.githubusercontent.com/eco4cast-class-VT/VT_NEET/master/temp_gapfill.csv"))
+temp_inSW_data <- read.csv(text = getURL("https://raw.githubusercontent.com/eco4cast-class-VT/VT_NEET/master/temp_inSW_gapfill.csv"))
 
 # Convert time column from character to POSIXct
 
 # Time zone in target data is UTC according to https://docs.google.com/document/d/1l7sxBk-z-GHTlk50rdxP0lPTwJzFJ2gykclINkMsWcc/edit
 
 target_data$time <- ymd_hms(target_data$time, tz = "UTC")
-temp_data$startDateTime <- ymd_hms(temp_data$startDateTime, tz = "UTC")
+temp_inSW_data$startDateTime <- ymd_hms(temp_inSW_data$startDateTime, tz = "UTC")
 
 # Convert siteID column from character to factor
 
 target_data$siteID <- as.factor(target_data$siteID)
-temp_data$siteID <- as.factor(temp_data$siteID)
+temp_inSW_data$siteID <- as.factor(temp_inSW_data$siteID)
 
 # Plot all data
 
@@ -67,7 +66,11 @@ ggplot(data = filter(target_data,
   theme(legend.position = "none")
 ```
 
-Construct temperature dynamic linear model (DLM) for NIMBLE.
+Construct dynamic linear model (DLM) for NIMBLE.
+
+We used the following model structure:
+
+$$NEE(t) = \beta_1 \times NEE(t-1) + \beta_2 \times \Delta SW_{incoming} + \beta_3 \times \Delta temp$$
 
 ```{r Temperature dynamic linear model (DLM) NIMBLE code}
 TempDLM <- nimbleCode({
@@ -80,12 +83,14 @@ TempDLM <- nimbleCode({
   
   x[1] ~ dnorm(x_ic, sd = sd_ic)
   sd_add ~ dunif(0, 100)
-  b1 ~ dnorm(0, sd = 100)  # Temperature effect coefficient
-  
+  b1 ~ dunif(0, 1)  # "Uncertainty stabilization" parameter
+  b2 ~ dunif(-10, 0)  # Incoming SW radiation effect coefficient
+  b3 ~ dunif(0, 10)  # Temperature effect coefficient
+
   # Process model
   
   for(t in 2:n){
-    pred[t] <- x[t-1] + b1 * temp[t]
+    pred[t] <- b1 * x[t - 1] + b2 * (inSW[t] - inSW[t - 1]) + b3 * (temp[t] - temp[t - 1])
     x[t] ~ dnorm(pred[t], sd = sd_add)
   }
   
@@ -114,7 +119,15 @@ Specify data from BART to be used for model fitting.
 # Separate data by site
 
 target_data_BART <- filter(target_data, siteID == "BART")
-temp_data_BART <- filter(temp_data, siteID == "BART")
+temp_data_BART <- filter(temp_inSW_data, siteID == "BART")
+
+# Scale data
+
+sd_temp_data_BART <- sd(temp_data_BART$temp)
+sd_inSW_data_BART <- sd(temp_data_BART$inSW)
+
+temp_data_BART$temp <- temp_data_BART$temp/sd_temp_data_BART
+temp_data_BART$inSW <- temp_data_BART$inSW/sd_inSW_data_BART
 
 # Specify time period end date and time
 
@@ -165,11 +178,12 @@ temp_data_BART_sub <- temp_data_BART[BART_temp_i,]
 
 # Specify sd_obs modifier (to account for lower NEE in winter)
 
-sd_obs_mod_BART <- 0.125
+sd_obs_mod_BART <- 0.75
 
 # Specify data
 
 data_TempDLM_BART <- list(y = target_data_BART_sub$nee,
+                          inSW = temp_data_BART_sub$inSW,
                           temp = temp_data_BART_sub$temp,
                           sd_obs = sd_obs_BART_sub * sd_obs_mod_BART)
 ```
@@ -180,7 +194,15 @@ Specify data from KONZ to be used for model fitting.
 # Separate data by site
 
 target_data_KONZ <- filter(target_data, siteID == "KONZ")
-temp_data_KONZ <- filter(temp_data, siteID == "KONZ")
+temp_data_KONZ <- filter(temp_inSW_data, siteID == "KONZ")
+
+# Scale data
+
+sd_temp_data_KONZ <- sd(temp_data_KONZ$temp)
+sd_inSW_data_KONZ <- sd(temp_data_KONZ$inSW)
+
+temp_data_KONZ$temp <- temp_data_KONZ$temp/sd_temp_data_KONZ
+temp_data_KONZ$inSW <- temp_data_KONZ$inSW/sd_inSW_data_KONZ
 
 # Specify time period end date and time
 
@@ -231,11 +253,12 @@ temp_data_KONZ_sub <- temp_data_KONZ[KONZ_temp_i,]
 
 # Specify sd_obs modifier (to account for lower NEE in winter)
 
-sd_obs_mod_KONZ <- 0.075
+sd_obs_mod_KONZ <- 0.25
 
 # Specify data
 
 data_TempDLM_KONZ <- list(y = target_data_KONZ_sub$nee,
+                          inSW = temp_data_KONZ_sub$inSW,
                           temp = temp_data_KONZ_sub$temp,
                           sd_obs = sd_obs_KONZ_sub * sd_obs_mod_KONZ)
 ```
@@ -246,7 +269,15 @@ Specify data from OSBS to be used for model fitting.
 # Separate data by site
 
 target_data_OSBS <- filter(target_data, siteID == "OSBS")
-temp_data_OSBS <- filter(temp_data, siteID == "OSBS")
+temp_data_OSBS <- filter(temp_inSW_data, siteID == "OSBS")
+
+# Scale data
+
+sd_temp_data_OSBS <- sd(temp_data_OSBS$temp)
+sd_inSW_data_OSBS <- sd(temp_data_OSBS$inSW)
+
+temp_data_OSBS$temp <- temp_data_OSBS$temp/sd_temp_data_OSBS
+temp_data_OSBS$inSW <- temp_data_OSBS$inSW/sd_inSW_data_OSBS
 
 # Specify time period end date and time
 
@@ -302,6 +333,7 @@ sd_obs_mod_OSBS <- 1
 # Specify data
 
 data_TempDLM_OSBS <- list(y = target_data_OSBS_sub$nee,
+                          inSW = temp_data_OSBS_sub$inSW,
                           temp = temp_data_OSBS_sub$temp,
                           sd_obs = sd_obs_OSBS_sub * sd_obs_mod_OSBS)
 ```
@@ -312,7 +344,15 @@ Specify data from SRER to be used for model fitting.
 # Separate data by site
 
 target_data_SRER <- filter(target_data, siteID == "SRER")
-temp_data_SRER <- filter(temp_data, siteID == "SRER")
+temp_data_SRER <- filter(temp_inSW_data, siteID == "SRER")
+
+# Scale data
+
+sd_temp_data_SRER <- sd(temp_data_SRER$temp)
+sd_inSW_data_SRER <- sd(temp_data_SRER$inSW)
+
+temp_data_SRER$temp <- temp_data_SRER$temp/sd_temp_data_SRER
+temp_data_SRER$inSW <- temp_data_SRER$inSW/sd_inSW_data_SRER
 
 # Specify time period end date and time
 
@@ -363,11 +403,12 @@ temp_data_SRER_sub <- temp_data_SRER[SRER_temp_i,]
 
 # Specify sd_obs modifier (to account for lower NEE in winter)
 
-sd_obs_mod_SRER <- 0.15
+sd_obs_mod_SRER <- 0.25
 
 # Specify data
 
 data_TempDLM_SRER <- list(y = target_data_SRER_sub$nee,
+                          inSW = temp_data_SRER_sub$inSW,
                           temp = temp_data_SRER_sub$temp,
                           sd_obs = sd_obs_SRER_sub * sd_obs_mod_SRER)
 ```
@@ -416,29 +457,25 @@ for(i in 1:nchains){
   
   y.samp <- sample(nee_interp_BART_sub$y, length(nee_interp_BART_sub$y), replace = TRUE)
   inits_TempDLM_BART[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
-                                  x = nee_interp_BART_sub$y,
-                                  b1 = rnorm(1, mean = 0, sd = 1))
+                                  x = nee_interp_BART_sub$y)
   
   # KONZ
   
   y.samp <- sample(nee_interp_KONZ_sub$y, length(nee_interp_KONZ_sub$y), replace = TRUE)
   inits_TempDLM_KONZ[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
-                                  x = nee_interp_KONZ_sub$y,
-                                  b1 = rnorm(1, mean = 0, sd = 1))
+                                  x = nee_interp_KONZ_sub$y)
   
   # OSBS
   
   y.samp <- sample(nee_interp_OSBS_sub$y, length(nee_interp_OSBS_sub$y), replace = TRUE)
   inits_TempDLM_OSBS[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
-                                  x = nee_interp_OSBS_sub$y,
-                                  b1 = rnorm(1, mean = 0, sd = 1))
+                                  x = nee_interp_OSBS_sub$y)
   
   # SRER
   
   y.samp <- sample(nee_interp_SRER_sub$y, length(nee_interp_SRER_sub$y), replace = TRUE)
   inits_TempDLM_SRER[[i]] <- list(sd_add = sd(diff(y.samp), na.rm = TRUE),
-                                  x = nee_interp_SRER_sub$y,
-                                  b1 = rnorm(1, mean = 0, sd = 1))
+                                  x = nee_interp_SRER_sub$y)
   
 }
 ```
@@ -458,6 +495,8 @@ nimble_out_TempDLM_BART <- nimbleMCMC(code = TempDLM,
                                       inits = inits_TempDLM_BART,
                                       constants = constants_BART,
                                       monitors = c("b1",
+                                                   "b2",
+                                                   "b3",
                                                    "sd_add",
                                                    "x",
                                                    "y"),
@@ -473,6 +512,8 @@ nimble_out_TempDLM_KONZ <- nimbleMCMC(code = TempDLM,
                                       inits = inits_TempDLM_KONZ,
                                       constants = constants_KONZ,
                                       monitors = c("b1",
+                                                   "b2",
+                                                   "b3",
                                                    "sd_add",
                                                    "x",
                                                    "y"),
@@ -488,6 +529,8 @@ nimble_out_TempDLM_OSBS <- nimbleMCMC(code = TempDLM,
                                       inits = inits_TempDLM_OSBS,
                                       constants = constants_OSBS,
                                       monitors = c("b1",
+                                                   "b2",
+                                                   "b3",
                                                    "sd_add",
                                                    "x",
                                                    "y"),
@@ -503,6 +546,8 @@ nimble_out_TempDLM_SRER <- nimbleMCMC(code = TempDLM,
                                       inits = inits_TempDLM_SRER,
                                       constants = constants_SRER,
                                       monitors = c("b1",
+                                                   "b2",
+                                                   "b3",
                                                    "sd_add",
                                                    "x",
                                                    "y"),
@@ -582,39 +627,47 @@ nimble_burn_TempDLM_SRER = PlotChain(siteID = "SRER", nimble_out_TempDLM_SRER)
 
 Examine Brooks-Gelman-Rubin convergence diagnostic for temperature DLM.
 
-Since the upper confidence interval (C.I.) for the Brooks-Gelman-Rubin convergence diagnostic is less than 1.1 for both parameters, we can conclude the chains have converged for BART.
+Since the upper confidence interval (C.I.) for the Brooks-Gelman-Rubin convergence diagnostic is less than 1.1 for all parameters, we can conclude the chains have converged for BART.
 
 ```{r Confirm convergence for temperature DLM: BART}
 # BART
 
 gelman.diag(nimble_burn_TempDLM_BART[, "b1"])
+gelman.diag(nimble_burn_TempDLM_BART[, "b2"])
+gelman.diag(nimble_burn_TempDLM_BART[, "b3"])
 gelman.diag(nimble_burn_TempDLM_BART[, "sd_add"])
 ```
 
-Since at least one of the upper confidence intervals for the Brooks-Gelman-Rubin convergence diagnostic is greater than 1.1, we can conclude the chains have not converged for KONZ. This may be due to the large gaps in the data for the fitting period.
+Since the upper confidence interval (C.I.) for the Brooks-Gelman-Rubin convergence diagnostic is less than 1.1 for all parameters, we can conclude the chains have converged for KONZ.
 
 ```{r Confirm convergence for temperature DLM: KONZ}
 # KONZ
 
 gelman.diag(nimble_burn_TempDLM_KONZ[, "b1"])
+gelman.diag(nimble_burn_TempDLM_KONZ[, "b2"])
+gelman.diag(nimble_burn_TempDLM_KONZ[, "b3"])
 gelman.diag(nimble_burn_TempDLM_KONZ[, "sd_add"])
 ```
 
-Since the upper confidence interval (C.I.) for the Brooks-Gelman-Rubin convergence diagnostic is less than 1.1 for both parameters, we can conclude the chains have converged for OSBS.
+Since the upper confidence interval (C.I.) for the Brooks-Gelman-Rubin convergence diagnostic is less than 1.1 for all parameters, we can conclude the chains have converged for OSBS.
 
 ```{r Confirm convergence for temperature DLM: OSBS}
 # OSBS
 
 gelman.diag(nimble_burn_TempDLM_OSBS[, "b1"])
+gelman.diag(nimble_burn_TempDLM_OSBS[, "b2"])
+gelman.diag(nimble_burn_TempDLM_OSBS[, "b3"])
 gelman.diag(nimble_burn_TempDLM_OSBS[, "sd_add"])
 ```
 
-Since at least one of the upper confidence intervals for the Brooks-Gelman-Rubin convergence diagnostic is greater than 1.1, we can conclude the chains have not converged for SRER. This may be due to the large gaps in the data for the fitting period.
+Since the upper confidence interval (C.I.) for the Brooks-Gelman-Rubin convergence diagnostic is less than 1.1 for all parameters, we can conclude the chains have converged for SRER.
 
 ```{r Confirm convergence for temperature DLM: SRER}
 # SRER
 
 gelman.diag(nimble_burn_TempDLM_SRER[, "b1"])
+gelman.diag(nimble_burn_TempDLM_SRER[, "b2"])
+gelman.diag(nimble_burn_TempDLM_SRER[, "b3"])
 gelman.diag(nimble_burn_TempDLM_SRER[, "sd_add"])
 ```
 
@@ -624,22 +677,22 @@ Convert temperature DLM output using tidybayes.
 # BART
 
 chain_TempDLM_BART <- nimble_burn_TempDLM_BART %>%
-  spread_draws(y[day], x[day], b1, sd_add)
+  spread_draws(y[day], x[day], b1, b2, b3, sd_add)
 
 # KONZ
 
 chain_TempDLM_KONZ <- nimble_burn_TempDLM_KONZ %>%
-  spread_draws(y[day], x[day], b1, sd_add)
+  spread_draws(y[day], x[day], b1, b2, b3, sd_add)
 
 # OSBS
 
 chain_TempDLM_OSBS <- nimble_burn_TempDLM_OSBS %>%
-  spread_draws(y[day], x[day], b1, sd_add)
+  spread_draws(y[day], x[day], b1, b2, b3, sd_add)
 
 # SRER
 
 chain_TempDLM_SRER <- nimble_burn_TempDLM_SRER %>%
-  spread_draws(y[day], x[day], b1, sd_add)
+  spread_draws(y[day], x[day], b1, b2, b3, sd_add)
 ```
 
 Plot temperature DLM versus observations.
@@ -664,7 +717,7 @@ plot_TempDLM_BART <- ggplot(data = plot_chain_TempDLM_BART, aes(x = time, y = me
               color = plot_colors[1],
               fill = plot_colors[1]) +
   geom_point(data = target_data_BART_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste("Site: BART | Time Period: ", substr(target_data_BART_sub$time[1], 1, 10), "to", substr(target_data_BART_sub$time[subset_length_timesteps], 1, 10)),
+  labs(title = paste0("Site: BART | Time Period: ", substr(target_data_BART_sub$time[1], 1, 10), " to ", substr(target_data_BART_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
@@ -686,7 +739,7 @@ plot_TempDLM_KONZ <- ggplot(data = plot_chain_TempDLM_KONZ, aes(x = time, y = me
               color = plot_colors[2],
               fill = plot_colors[2]) +
   geom_point(data = target_data_KONZ_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste("Site: KONZ | Time Period: ", substr(target_data_KONZ_sub$time[1], 1, 10), "to", substr(target_data_KONZ_sub$time[subset_length_timesteps], 1, 10)),
+  labs(title = paste0("Site: KONZ | Time Period: ", substr(target_data_KONZ_sub$time[1], 1, 10), " to ", substr(target_data_KONZ_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
@@ -708,7 +761,7 @@ plot_TempDLM_OSBS <- ggplot(data = plot_chain_TempDLM_OSBS, aes(x = time, y = me
               color = plot_colors[3],
               fill = plot_colors[3]) +
   geom_point(data = target_data_OSBS_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste("Site: OSBS | Time Period: ", substr(target_data_OSBS_sub$time[1], 1, 10), "to", substr(target_data_OSBS_sub$time[subset_length_timesteps], 1, 10)),
+  labs(title = paste0("Site: OSBS | Time Period: ", substr(target_data_OSBS_sub$time[1], 1, 10), " to ", substr(target_data_OSBS_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
@@ -730,7 +783,7 @@ plot_TempDLM_SRER <- ggplot(data = plot_chain_TempDLM_SRER, aes(x = time, y = me
               color = plot_colors[4],
               fill = plot_colors[4]) +
   geom_point(data = target_data_SRER_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste("Site: SRER | Time Period: ", substr(target_data_SRER_sub$time[1], 1, 10), "to", substr(target_data_SRER_sub$time[subset_length_timesteps], 1, 10)),
+  labs(title = paste0("Site: SRER | Time Period: ", substr(target_data_SRER_sub$time[1], 1, 10), " to ", substr(target_data_SRER_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
@@ -817,12 +870,14 @@ temp_ensembles <- sample(unique(NOAA_temp_forecast_site$ensemble),
                          size = ensemble_size,
                          replace = TRUE)
 
+forecast_inSW <- matrix(NA, nrow = forecast_length, ncol = ensemble_size)  # Initialize forecast incoming SW radiation matrix
+
 forecast_temp <- matrix(NA, nrow = forecast_length, ncol = ensemble_size)  # Initialize forecast temperature matrix
 
 for(i in 1:ensemble_size){
   
-  forecast_temp[, i] <- filter(NOAA_temp_forecast_site, ensemble == temp_ensembles[i])$tempC
-  
+  forecast_inSW[, i] <- filter(NOAA_temp_forecast_site, ensemble == temp_ensembles[i])$inSW/sd_inSW_data_BART
+  forecast_temp[, i] <- filter(NOAA_temp_forecast_site, ensemble == temp_ensembles[i])$tempC/sd_temp_data_BART
 }
 
 # Sample from parameter posterior distribution
@@ -836,6 +891,8 @@ posterior_sample_indices <- sample(x = 1:length(chain_TempDLM_last_time_step$x),
 
 NEE_ic <- chain_TempDLM_last_time_step$x[posterior_sample_indices]  # Extract last latent state value
 b1 <- chain_TempDLM_last_time_step$b1[posterior_sample_indices]  # Extract sampled b1 values
+b2 <- chain_TempDLM_last_time_step$b2[posterior_sample_indices]  # Extract sampled b2 values
+b3 <- chain_TempDLM_last_time_step$b3[posterior_sample_indices]  # Extract sampled b3 values
 sd_add <- chain_TempDLM_last_time_step$sd_add[posterior_sample_indices]  # Extract sampled sd_add values
 
 # Specify initial conditions
@@ -857,7 +914,7 @@ for(m in 1:ensemble_size){
       # NEE_state = real NEE (state variable)
       # NEE_obs = observed NEE
       
-      pred <- NEE_state[t - 1, m] + b1[m] * forecast_temp[t, m]
+      pred <- b1[m] * NEE_state[t - 1, m] + b2[m] * (forecast_inSW[t, m] - forecast_inSW[t - 1, m]) +  b3[m] * (forecast_temp[t, m] - forecast_temp[t - 1, m])
       NEE_state[t, m] <- rnorm(1, mean = pred, sd = sd_add[m])
     
     }
@@ -920,11 +977,14 @@ temp_ensembles <- sample(unique(NOAA_temp_forecast_site$ensemble),
                          size = ensemble_size,
                          replace = TRUE)
 
+forecast_inSW <- matrix(NA, nrow = forecast_length, ncol = ensemble_size)  # Initialize forecast incoming SW radiation matrix
+
 forecast_temp <- matrix(NA, nrow = forecast_length, ncol = ensemble_size)  # Initialize forecast temperature matrix
 
 for(i in 1:ensemble_size){
   
-  forecast_temp[, i] <- filter(NOAA_temp_forecast_site, ensemble == temp_ensembles[i])$tempC
+  forecast_inSW[, i] <- filter(NOAA_temp_forecast_site, ensemble == temp_ensembles[i])$inSW/sd_inSW_data_KONZ
+  forecast_temp[, i] <- filter(NOAA_temp_forecast_site, ensemble == temp_ensembles[i])$tempC/sd_temp_data_KONZ
   
 }
 
@@ -939,6 +999,8 @@ posterior_sample_indices <- sample(x = 1:length(chain_TempDLM_last_time_step$x),
 
 NEE_ic <- chain_TempDLM_last_time_step$x[posterior_sample_indices]  # Extract last latent state value
 b1 <- chain_TempDLM_last_time_step$b1[posterior_sample_indices]  # Extract sampled b1 values
+b2 <- chain_TempDLM_last_time_step$b2[posterior_sample_indices]  # Extract sampled b2 values
+b3 <- chain_TempDLM_last_time_step$b3[posterior_sample_indices]  # Extract sampled b3 values
 sd_add <- chain_TempDLM_last_time_step$sd_add[posterior_sample_indices]  # Extract sampled sd_add values
 
 # Specify initial conditions
@@ -960,7 +1022,7 @@ for(m in 1:ensemble_size){
       # NEE_state = real NEE (state variable)
       # NEE_obs = observed NEE
       
-      pred <- NEE_state[t - 1, m] + b1[m] * forecast_temp[t, m]
+      pred <- b1[m] * NEE_state[t - 1, m] + b2[m] * (forecast_inSW[t, m] - forecast_inSW[t - 1, m]) +  b3[m] * (forecast_temp[t, m] - forecast_temp[t - 1, m])
       NEE_state[t, m] <- rnorm(1, mean = pred, sd = sd_add[m])
     
     }
@@ -1023,11 +1085,14 @@ temp_ensembles <- sample(unique(NOAA_temp_forecast_site$ensemble),
                          size = ensemble_size,
                          replace = TRUE)
 
+forecast_inSW <- matrix(NA, nrow = forecast_length, ncol = ensemble_size)  # Initialize forecast incoming SW radiation matrix
+
 forecast_temp <- matrix(NA, nrow = forecast_length, ncol = ensemble_size)  # Initialize forecast temperature matrix
 
 for(i in 1:ensemble_size){
   
-  forecast_temp[, i] <- filter(NOAA_temp_forecast_site, ensemble == temp_ensembles[i])$tempC
+  forecast_inSW[, i] <- filter(NOAA_temp_forecast_site, ensemble == temp_ensembles[i])$inSW/sd_inSW_data_OSBS
+  forecast_temp[, i] <- filter(NOAA_temp_forecast_site, ensemble == temp_ensembles[i])$tempC/sd_temp_data_OSBS
   
 }
 
@@ -1042,6 +1107,8 @@ posterior_sample_indices <- sample(x = 1:length(chain_TempDLM_last_time_step$x),
 
 NEE_ic <- chain_TempDLM_last_time_step$x[posterior_sample_indices]  # Extract last latent state value
 b1 <- chain_TempDLM_last_time_step$b1[posterior_sample_indices]  # Extract sampled b1 values
+b2 <- chain_TempDLM_last_time_step$b2[posterior_sample_indices]  # Extract sampled b2 values
+b3 <- chain_TempDLM_last_time_step$b3[posterior_sample_indices]  # Extract sampled b3 values
 sd_add <- chain_TempDLM_last_time_step$sd_add[posterior_sample_indices]  # Extract sampled sd_add values
 
 # Specify initial conditions
@@ -1063,7 +1130,7 @@ for(m in 1:ensemble_size){
       # NEE_state = real NEE (state variable)
       # NEE_obs = observed NEE
       
-      pred <- NEE_state[t - 1, m] + b1[m] * forecast_temp[t, m]
+      pred <- b1[m] * NEE_state[t - 1, m] + b2[m] * (forecast_inSW[t, m] - forecast_inSW[t - 1, m]) +  b3[m] * (forecast_temp[t, m] - forecast_temp[t - 1, m])
       NEE_state[t, m] <- rnorm(1, mean = pred, sd = sd_add[m])
     
     }
@@ -1126,11 +1193,14 @@ temp_ensembles <- sample(unique(NOAA_temp_forecast_site$ensemble),
                          size = ensemble_size,
                          replace = TRUE)
 
+forecast_inSW <- matrix(NA, nrow = forecast_length, ncol = ensemble_size)  # Initialize forecast incoming SW radiation matrix
+
 forecast_temp <- matrix(NA, nrow = forecast_length, ncol = ensemble_size)  # Initialize forecast temperature matrix
 
 for(i in 1:ensemble_size){
   
-  forecast_temp[, i] <- filter(NOAA_temp_forecast_site, ensemble == temp_ensembles[i])$tempC
+  forecast_inSW[, i] <- filter(NOAA_temp_forecast_site, ensemble == temp_ensembles[i])$inSW/sd_inSW_data_SRER
+  forecast_temp[, i] <- filter(NOAA_temp_forecast_site, ensemble == temp_ensembles[i])$tempC/sd_temp_data_SRER
   
 }
 
@@ -1145,6 +1215,8 @@ posterior_sample_indices <- sample(x = 1:length(chain_TempDLM_last_time_step$x),
 
 NEE_ic <- chain_TempDLM_last_time_step$x[posterior_sample_indices]  # Extract last latent state value
 b1 <- chain_TempDLM_last_time_step$b1[posterior_sample_indices]  # Extract sampled b1 values
+b2 <- chain_TempDLM_last_time_step$b2[posterior_sample_indices]  # Extract sampled b2 values
+b3 <- chain_TempDLM_last_time_step$b3[posterior_sample_indices]  # Extract sampled b3 values
 sd_add <- chain_TempDLM_last_time_step$sd_add[posterior_sample_indices]  # Extract sampled sd_add values
 
 # Specify initial conditions
@@ -1166,7 +1238,7 @@ for(m in 1:ensemble_size){
       # NEE_state = real NEE (state variable)
       # NEE_obs = observed NEE
       
-      pred <- NEE_state[t - 1, m] + b1[m] * forecast_temp[t, m]
+      pred <- b1[m] * NEE_state[t - 1, m] + b2[m] * (forecast_inSW[t, m] - forecast_inSW[t - 1, m]) +  b3[m] * (forecast_temp[t, m] - forecast_temp[t - 1, m])
       NEE_state[t, m] <- rnorm(1, mean = pred, sd = sd_add[m])
     
     }
@@ -1226,7 +1298,7 @@ NEE_forecast <- rbind(NEE_forecast_BART,
                       NEE_forecast_OSBS,
                       NEE_forecast_SRER)
 
-write.csv(NEE_forecast, file = "terrestrial_30min-2021-03-01-VT_NEET.csv", row.names = FALSE)
+write.csv(NEE_forecast, file = "terrestrial_30min-2021-04-01-VT_NEET.csv", row.names = FALSE)
 ```
 
 Plot forecasts (with fitted model and observations).
@@ -1374,4 +1446,7 @@ PlotObsAndForecast(site = "BART", NEE_forecast_BART, plot_chain_TempDLM_BART, ta
 PlotObsAndForecast(site = "KONZ", NEE_forecast_KONZ, plot_chain_TempDLM_KONZ, target_data_KONZ_sub)
 PlotObsAndForecast(site = "OSBS", NEE_forecast_OSBS, plot_chain_TempDLM_OSBS, target_data_OSBS_sub)
 PlotObsAndForecast(site = "SRER", NEE_forecast_SRER, plot_chain_TempDLM_SRER, target_data_SRER_sub)
+```
+```{r, echo = FALSE}
+# (plot_TempDLM_BART + plot_TempDLM_KONZ) / (plot_TempDLM_OSBS + plot_TempDLM_SRER)
 ```
