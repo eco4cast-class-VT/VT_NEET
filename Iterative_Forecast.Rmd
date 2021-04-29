@@ -563,7 +563,7 @@ PlotChain = function(siteID, nimbleOutput, burnin = 2000)
   plot(nimbleOutput[, c("sd_add")], main = paste(siteID, ": sd_add", sep = ''))
   
   # Exclude burn-in:
-  nimbleMinusBurn <- window(nimbleOutput, start = burnin_TempDLM_SRER)
+  nimbleMinusBurn <- window(nimbleOutput, start = burnin)
   #Visualize chains w/o burn-in
   plot(nimbleMinusBurn[, c("b1")], main = "SRER: b1 (burn-in removed)")
   plot(nimbleMinusBurn[, c("sd_add")], main = "SRER: sd_add (burn-in removed)")
