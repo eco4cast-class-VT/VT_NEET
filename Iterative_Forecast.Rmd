@@ -698,77 +698,109 @@ chain_TempDLM_SRER <- nimble_burn_TempDLM_SRER %>%
 Plot temperature DLM versus observations.
 
 ```{r Plot temperature DLM versus observations, warning = FALSE}
-plot_colors <- c("#F8766D", "#7CAE00", "#00BFC4", "#C77CFF")
+# plot_colors <- c("#F8766D", "#7CAE00", "#00BFC4", "#C77CFF")
+# 
+# # BART
+# 
+# plot_chain_TempDLM_BART <- chain_TempDLM_BART %>%
+#   group_by(day) %>%
+#   summarise(mean = mean(x),
+#             lower = quantile(x, 0.025),
+#             upper = quantile(x, 0.975),
+#             .groups = "drop") %>%
+#   mutate(time = target_data_BART_sub$time)
+# 
+# plot_TempDLM_BART <- ggplot(data = plot_chain_TempDLM_BART, aes(x = time, y = mean)) +
+#   geom_line() +
+#   geom_ribbon(aes(ymin = lower, ymax = upper),
+#               alpha = 0.2,
+#               color = plot_colors[1],
+#               fill = plot_colors[1]) +
+#   geom_point(data = target_data_BART_sub, aes(x = time, y = nee), color = "black") +
+#   labs(title = paste0("Site: BART | Time Period: ", substr(target_data_BART_sub$time[1], 1, 10), " to ", substr(target_data_BART_sub$time[subset_length_timesteps], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+# 
+# # KONZ
+# 
+# plot_chain_TempDLM_KONZ <- chain_TempDLM_KONZ %>%
+#   group_by(day) %>%
+#   summarise(mean = mean(x),
+#             lower = quantile(x, 0.025),
+#             upper = quantile(x, 0.975),
+#             .groups = "drop") %>%
+#   mutate(time = target_data_KONZ_sub$time)
+# 
+# plot_TempDLM_KONZ <- ggplot(data = plot_chain_TempDLM_KONZ, aes(x = time, y = mean)) +
+#   geom_line() +
+#   geom_ribbon(aes(ymin = lower, ymax = upper),
+#               alpha = 0.2,
+#               color = plot_colors[2],
+#               fill = plot_colors[2]) +
+#   geom_point(data = target_data_KONZ_sub, aes(x = time, y = nee), color = "black") +
+#   labs(title = paste0("Site: KONZ | Time Period: ", substr(target_data_KONZ_sub$time[1], 1, 10), " to ", substr(target_data_KONZ_sub$time[subset_length_timesteps], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+# 
+# # OSBS
+# 
+# plot_chain_TempDLM_OSBS <- chain_TempDLM_OSBS %>%
+#   group_by(day) %>%
+#   summarise(mean = mean(x),
+#             lower = quantile(x, 0.025),
+#             upper = quantile(x, 0.975),
+#             .groups = "drop") %>%
+#   mutate(time = target_data_OSBS_sub$time)
+# 
+# plot_TempDLM_OSBS <- ggplot(data = plot_chain_TempDLM_OSBS, aes(x = time, y = mean)) +
+#   geom_line() +
+#   geom_ribbon(aes(ymin = lower, ymax = upper),
+#               alpha = 0.2,
+#               color = plot_colors[3],
+#               fill = plot_colors[3]) +
+#   geom_point(data = target_data_OSBS_sub, aes(x = time, y = nee), color = "black") +
+#   labs(title = paste0("Site: OSBS | Time Period: ", substr(target_data_OSBS_sub$time[1], 1, 10), " to ", substr(target_data_OSBS_sub$time[subset_length_timesteps], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+# 
+# # SRER
+# 
+# plot_chain_TempDLM_SRER <- chain_TempDLM_SRER %>%
+#   group_by(day) %>%
+#   summarise(mean = mean(x),
+#             lower = quantile(x, 0.025),
+#             upper = quantile(x, 0.975),
+#             .groups = "drop") %>%
+#   mutate(time = target_data_SRER_sub$time)
+# 
+# plot_TempDLM_SRER <- ggplot(data = plot_chain_TempDLM_SRER, aes(x = time, y = mean)) +
+#   geom_line() +
+#   geom_ribbon(aes(ymin = lower, ymax = upper),
+#               alpha = 0.2,
+#               color = plot_colors[4],
+#               fill = plot_colors[4]) +
+#   geom_point(data = target_data_SRER_sub, aes(x = time, y = nee), color = "black") +
+#   labs(title = paste0("Site: SRER | Time Period: ", substr(target_data_SRER_sub$time[1], 1, 10), " to ", substr(target_data_SRER_sub$time[subset_length_timesteps], 1, 10)),
+#        x = "Time (UTC)",
+#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
+#   theme_bw()
+# 
+# plot_TempDLM_BART
+# plot_TempDLM_KONZ
+# plot_TempDLM_OSBS
+# plot_TempDLM_SRER
 
-# BART
+#Reorganized code:
+#Untested because I can't connect to https://data.ecoforecast.org/ right now
+plot_colors = c("BART" = "#F8766D", "KONZ" = "#7CAE00", "OSBS" = "#00BFC4", "SRER" = "#C77CFF")
 
-plot_chain_TempDLM_BART <- chain_TempDLM_BART %>%
-  group_by(day) %>%
-  summarise(mean = mean(x),
-            lower = quantile(x, 0.025),
-            upper = quantile(x, 0.975),
-            .groups = "drop") %>%
-  mutate(time = target_data_BART_sub$time)
-
-plot_TempDLM_BART <- ggplot(data = plot_chain_TempDLM_BART, aes(x = time, y = mean)) +
-  geom_line() +
-  geom_ribbon(aes(ymin = lower, ymax = upper),
-              alpha = 0.2,
-              color = plot_colors[1],
-              fill = plot_colors[1]) +
-  geom_point(data = target_data_BART_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste0("Site: BART | Time Period: ", substr(target_data_BART_sub$time[1], 1, 10), " to ", substr(target_data_BART_sub$time[subset_length_timesteps], 1, 10)),
-       x = "Time (UTC)",
-       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
-
-# KONZ
-
-plot_chain_TempDLM_KONZ <- chain_TempDLM_KONZ %>%
-  group_by(day) %>%
-  summarise(mean = mean(x),
-            lower = quantile(x, 0.025),
-            upper = quantile(x, 0.975),
-            .groups = "drop") %>%
-  mutate(time = target_data_KONZ_sub$time)
-
-plot_TempDLM_KONZ <- ggplot(data = plot_chain_TempDLM_KONZ, aes(x = time, y = mean)) +
-  geom_line() +
-  geom_ribbon(aes(ymin = lower, ymax = upper),
-              alpha = 0.2,
-              color = plot_colors[2],
-              fill = plot_colors[2]) +
-  geom_point(data = target_data_KONZ_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste0("Site: KONZ | Time Period: ", substr(target_data_KONZ_sub$time[1], 1, 10), " to ", substr(target_data_KONZ_sub$time[subset_length_timesteps], 1, 10)),
-       x = "Time (UTC)",
-       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
-
-# OSBS
-
-plot_chain_TempDLM_OSBS <- chain_TempDLM_OSBS %>%
-  group_by(day) %>%
-  summarise(mean = mean(x),
-            lower = quantile(x, 0.025),
-            upper = quantile(x, 0.975),
-            .groups = "drop") %>%
-  mutate(time = target_data_OSBS_sub$time)
-
-plot_TempDLM_OSBS <- ggplot(data = plot_chain_TempDLM_OSBS, aes(x = time, y = mean)) +
-  geom_line() +
-  geom_ribbon(aes(ymin = lower, ymax = upper),
-              alpha = 0.2,
-              color = plot_colors[3],
-              fill = plot_colors[3]) +
-  geom_point(data = target_data_OSBS_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste0("Site: OSBS | Time Period: ", substr(target_data_OSBS_sub$time[1], 1, 10), " to ", substr(target_data_OSBS_sub$time[subset_length_timesteps], 1, 10)),
-       x = "Time (UTC)",
-       y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-  theme_bw()
-
-# SRER
-
-plot_chain_TempDLM_SRER <- chain_TempDLM_SRER %>%
+#Perform statistical summaries on a chain:
+GetChainStats <- function(chain_TempDLM)
+{
+  chainStatsSummary <- chain_TempDLM %>%
   group_by(day) %>%
   summarise(mean = mean(x),
             lower = quantile(x, 0.025),
@@ -776,74 +808,42 @@ plot_chain_TempDLM_SRER <- chain_TempDLM_SRER %>%
             .groups = "drop") %>%
   mutate(time = target_data_SRER_sub$time)
 
-plot_TempDLM_SRER <- ggplot(data = plot_chain_TempDLM_SRER, aes(x = time, y = mean)) +
+  return(chainStatsSummary)
+}
+
+#PlotObsAndForecast <- function(siteID, nee_forecast, plot_chain_TempDLM, target_data_sub)
+PlotTemperatureDLMvsObs <- function(siteID, plot_chain_TempDLM, target_data_sub)
+{
+  #plot_chain_TempDLM_SRER = plot_chain_TempDLM
+  #target_data_SRER_sub -> target_data_sub
+
+  plot = ggplot(plot_chain_TempDLM, aes(x = time, y = mean)) +
   geom_line() +
   geom_ribbon(aes(ymin = lower, ymax = upper),
               alpha = 0.2,
-              color = plot_colors[4],
-              fill = plot_colors[4]) +
-  geom_point(data = target_data_SRER_sub, aes(x = time, y = nee), color = "black") +
-  labs(title = paste0("Site: SRER | Time Period: ", substr(target_data_SRER_sub$time[1], 1, 10), " to ", substr(target_data_SRER_sub$time[subset_length_timesteps], 1, 10)),
+              color = plot_colors[siteID],
+              fill = plot_colors[siteID]) +
+  geom_point(data = target_data_sub, aes(x = time, y = nee), color = "black") +
+  labs(title = paste("Site:", siteID, "| Time Period: ", substr(target_data_sub$time[1], 1, 10),
+                     "to", substr(target_data_sub$time[subset_length_timesteps], 1, 10)),
        x = "Time (UTC)",
        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
   theme_bw()
 
-plot_TempDLM_BART
-plot_TempDLM_KONZ
-plot_TempDLM_OSBS
-plot_TempDLM_SRER
+  print(plot)
+}
 
-#Reorganized code:
-#Untested because I can't connect to https://data.ecoforecast.org/ right now
-# plot_colors = c("BART" = "#F8766D", "KONZ" = "#7CAE00", "OSBS" = "#00BFC4", "SRER" = "#C77CFF")
-# 
-# #Perform statistical summaries on a chain:
-# GetChainStats <- function(chain_TempDLM)
-# {
-#   chainStatsSummary <- chain_TempDLM %>%
-#   group_by(day) %>%
-#   summarise(mean = mean(x),
-#             lower = quantile(x, 0.025),
-#             upper = quantile(x, 0.975),
-#             .groups = "drop") %>%
-#   mutate(time = target_data_SRER_sub$time)
-#   
-#   return(chainStatsSummary)
-# }
-# 
-# #PlotObsAndForecast <- function(siteID, nee_forecast, plot_chain_TempDLM, target_data_sub)
-# PlotTemperatureDLMvsObs <- function(siteID, plot_chain_TempDLM, target_data_sub)
-# {
-#   #plot_chain_TempDLM_SRER = plot_chain_TempDLM
-#   #target_data_SRER_sub -> target_data_sub
-#   
-#   plot = ggplot(plot_chain_TempDLM, aes(x = time, y = mean)) +
-#   geom_line() +
-#   geom_ribbon(aes(ymin = lower, ymax = upper),
-#               alpha = 0.2,
-#               color = plot_colors[siteID],
-#               fill = plot_colors[siteID]) +
-#   geom_point(data = target_data_sub, aes(x = time, y = nee), color = "black") +
-#   labs(title = paste("Site:", siteID, "| Time Period: ", substr(target_data_sub$time[1], 1, 10),
-#                      "to", substr(target_data_sub$time[subset_length_timesteps], 1, 10)),
-#        x = "Time (UTC)",
-#        y = expression(paste("NEE (",mu, "mol" ~ CO[2] ~ m^-2 ~ s^-1,")"))) +
-#   theme_bw()
-#   
-#   print(plot)
-# }
-# 
-# plot_chain_TempDLM_SRER = GetChainStats(chain_TempDLM_BART)
-# PlotTemperatureDLMvsObs(site = "BART", plot_chain_TempDLM_BART, target_data_BART_sub)
-# 
-# plot_chain_TempDLM_SRER = GetChainStats(chain_TempDLM_BART)
-# PlotTemperatureDLMvsObs(site = "KONZ", plot_chain_TempDLM_KONZ, target_data_KONZ_sub)
-# 
-# plot_chain_TempDLM_SRER = GetChainStats(chain_TempDLM_BART)
-# PlotTemperatureDLMvsObs(site = "OSBS", plot_chain_TempDLM_OSBS, target_data_OSBS_sub)
-# 
-# plot_chain_TempDLM_SRER = GetChainStats(chain_TempDLM_SRER)
-# PlotTemperatureDLMvsObs(site = "SRER", plot_chain_TempDLM_SRER, target_data_SRER_sub)
+plot_chain_TempDLM_BART = GetChainStats(chain_TempDLM_BART)
+PlotTemperatureDLMvsObs(site = "BART", plot_chain_TempDLM_BART, target_data_BART_sub)
+
+plot_chain_TempDLM_KONZ = GetChainStats(chain_TempDLM_KONZ)
+PlotTemperatureDLMvsObs(site = "KONZ", plot_chain_TempDLM_KONZ, target_data_KONZ_sub)
+
+plot_chain_TempDLM_OSBS = GetChainStats(chain_TempDLM_OSBS)
+PlotTemperatureDLMvsObs(site = "OSBS", plot_chain_TempDLM_OSBS, target_data_OSBS_sub)
+
+plot_chain_TempDLM_SRER = GetChainStats(chain_TempDLM_SRER)
+PlotTemperatureDLMvsObs(site = "SRER", plot_chain_TempDLM_SRER, target_data_SRER_sub)
 
 ```
 
